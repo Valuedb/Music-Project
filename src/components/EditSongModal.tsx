@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Song } from '../App';
+import type { Song } from '../types';
 
 interface EditSongModalProps {
   isOpen: boolean;

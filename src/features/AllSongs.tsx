@@ -11,7 +11,7 @@ import {
   Check,
   MoreHorizontal,
 } from 'lucide-react';
-import type { Song, Playlist } from '../App';
+import type { Song, Playlist } from '../types';
 import { EditSongModal } from '../components/EditSongModal';
 
 // ================= اینترفیس پراپ‌ها =================

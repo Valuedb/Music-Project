@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlayerBar } from './components/PlayerBar';
 import { TopBar } from './components/TopBar';
@@ -6,29 +6,13 @@ import { Home } from './features/Home';
 import { AllSongs } from './features/AllSongs';
 import { Playlists } from './features/Playlists';
 import { Settings } from './features/Settings';
+import { usePersistentState } from './hooks/usePersistentState';
+import { usePlayer } from './hooks/usePlayer';
+import { STORAGE_KEYS } from './storage/keys';
+import { isPlaylistList, isSongList } from './types/guards';
+import type { Playlist, Song } from './types';
 import { translations, type Language } from './locales';
 import { getTheme, type PaletteType, type ThemeMode } from './theme';
-
-export interface Song {
-  id: string;
-  name: string;
-  artist: string;
-  cover: string;
-  fileUrl: string;
-  playCount: number;
-  addedAt: number;
-  album?: string;
-  year?: string;
-  duration?: number;
-}
-
-export interface Playlist {
-  id: string;
-  name: string;
-  songs: Song[];
-}
-
-export type RepeatMode = 'off' | 'all' | 'one';
 
 const tabs = ['home', 'allSongs', 'playlists'] as const;
 
@@ -36,55 +20,32 @@ function App() {
   const [currentTabIndex, setCurrentTabIndex] = useState(0);
   const currentTab = tabs[currentTabIndex];
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [direction, setDirection] = useState(0);
 
   const [language, setLanguage] = useState<Language>('fa');
   const [searchTerm, setSearchTerm] = useState("");
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [colorPalette, setColorPalette] = useState<PaletteType>('default');
 
-  const [songs, setSongs] = useState<Song[]>(() => {
-    const saved = localStorage.getItem('musicLibrary');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [playlists, setPlaylists] = useState<Playlist[]>(() => {
-    const saved = localStorage.getItem('playlists');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [currentSong, setCurrentSong] = useState<Song | null>(null);
-  const [queue, setQueue] = useState<Song[]>([]);
-  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
-  const [isShuffle, setIsShuffle] = useState(false);
-  const [playTrigger, setPlayTrigger] = useState(0);
-  const [direction, setDirection] = useState(0);
+  const [songs, setSongs] = usePersistentState<Song[]>(STORAGE_KEYS.library, [], isSongList);
+  const [playlists, setPlaylists] = usePersistentState<Playlist[]>(STORAGE_KEYS.playlists, [], isPlaylistList);
+  const player = usePlayer(songs);
 
   const t = translations[language];
   const theme = getTheme(themeMode, colorPalette);
 
-  useEffect(() => {
-    localStorage.setItem('musicLibrary', JSON.stringify(songs));
-  }, [songs]);
-
-  useEffect(() => {
-    localStorage.setItem('playlists', JSON.stringify(playlists));
-  }, [playlists]);
-
-  const playSongFromList = (song: Song, list: Song[]) => {
-    setCurrentSong(song);
-    setQueue(list);
-    setSongs((prevSongs) =>
-      prevSongs.map((s) =>
-        s.id === song.id ? { ...s, playCount: s.playCount + 1 } : s
-      )
+  /** وقتی یک پخش «واقعی» حساب شد (نه فقط کلیک یا رد شدن)، شمارنده‌ی پخش زیاد می‌شه */
+  const handleSongPlayed = (id: string) => {
+    setSongs((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, playCount: s.playCount + 1 } : s))
     );
   };
 
   const handleCreatePlaylist = (name: string, selectedSongs: Song[]) => {
-    const newPlaylist: Playlist = { 
-      id: crypto.randomUUID(), 
-      name: name, 
-      songs: selectedSongs 
+    const newPlaylist: Playlist = {
+      id: crypto.randomUUID(),
+      name: name,
+      songs: selectedSongs
     };
     setPlaylists((prev) => [...prev, newPlaylist]);
   };
@@ -113,10 +74,7 @@ function App() {
         songs: p.songs.map((s) => (s.id === updatedSong.id ? updatedSong : s)),
       }))
     );
-    setQueue((prev) => prev.map((s) => (s.id === updatedSong.id ? updatedSong : s)));
-    if (currentSong?.id === updatedSong.id) {
-      setCurrentSong(updatedSong);
-    }
+    player.syncSong(updatedSong);
   };
 
   const addSongToPlaylist = (playlistId: string, song: Song) => {
@@ -130,96 +88,24 @@ function App() {
     );
   };
 
-  const addToQueue = (song: Song) => {
-    setQueue((prev) => [...prev, song]);
-  };
-
-  const removeFromQueue = (id: string) => {
-    setQueue((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const playNext = () => {
-    const baseList = queue.length > 0 ? queue : songs;
-    if (baseList.length === 0) return;
-
-    let nextSong;
-    if (isShuffle) {
-      const availableSongs =
-        baseList.length > 1
-          ? baseList.filter((s) => s.id !== currentSong?.id)
-          : baseList;
-      nextSong = availableSongs[Math.floor(Math.random() * availableSongs.length)];
-    } else {
-      const currentIndex = baseList.findIndex((s) => s.id === currentSong?.id);
-      if (currentIndex === baseList.length - 1) {
-        nextSong = repeatMode === 'all' ? baseList[0] : baseList[currentIndex];
-      } else {
-        nextSong = baseList[currentIndex + 1];
-      }
-    }
-
-    setCurrentSong(nextSong);
-    setSongs((prevSongs) =>
-      prevSongs.map((s) =>
-        s.id === nextSong.id ? { ...s, playCount: s.playCount + 1 } : s
-      )
-    );
-  };
-
-  const playPrev = () => {
-    const baseList = queue.length > 0 ? queue : songs;
-    if (baseList.length === 0) return;
-
-    let prevSong;
-    if (isShuffle) {
-      const availableSongs =
-        baseList.length > 1
-          ? baseList.filter((s) => s.id !== currentSong?.id)
-          : baseList;
-      prevSong = availableSongs[Math.floor(Math.random() * availableSongs.length)];
-    } else {
-      const currentIndex = baseList.findIndex((s) => s.id === currentSong?.id);
-      if (currentIndex === 0) {
-        prevSong = repeatMode === 'all' ? baseList[baseList.length - 1] : baseList[0];
-      } else {
-        prevSong = baseList[currentIndex - 1];
-      }
-    }
-
-    setCurrentSong(prevSong);
-    setSongs((prevSongs) =>
-      prevSongs.map((s) =>
-        s.id === prevSong.id ? { ...s, playCount: s.playCount + 1 } : s
-      )
-    );
-  };
-
-  const reorderQueue = (fromIndex: number, toIndex: number) => {
-    setQueue((prev) => {
-      const newQueue = [...prev];
-      const [movedItem] = newQueue.splice(fromIndex, 1);
-      newQueue.splice(toIndex, 0, movedItem);
-      return newQueue;
-    });
-  };
-
   const deleteSong = (id: string) => {
     setSongs((prev) => prev.filter((s) => s.id !== id));
     setPlaylists((prev) =>
       prev.map((p) => ({ ...p, songs: p.songs.filter((s) => s.id !== id) }))
     );
-    setQueue((prev) => prev.filter((s) => s.id !== id));
+    player.removeSong(id);
   };
 
   const setTab = (tab: string) => {
-    const index = tabs.indexOf(tab as any);
-    if (index !== -1) {
-      setCurrentTabIndex(index);
-      setIsSettingsOpen(false);
-    }
     if (tab === 'settings') {
       setIsSettingsOpen(true);
+      return;
     }
+    const index = tabs.findIndex((name) => name === tab);
+    if (index === -1) return;
+    if (index !== currentTabIndex) setDirection(Math.sign(index - currentTabIndex));
+    setCurrentTabIndex(index);
+    setIsSettingsOpen(false);
   };
 
   const variants = {
@@ -274,7 +160,7 @@ function App() {
         return (
           <Home
             songs={songs}
-            onPlaySongFromList={playSongFromList}
+            onPlaySongFromList={player.playSongFromList}
             t={t}
             theme={theme}
           />
@@ -284,10 +170,10 @@ function App() {
           <AllSongs
             songs={songs}
             playlists={playlists}
-            currentSong={currentSong} // ✅ پاس دادن آهنگ فعلی
-            onPlaySongFromList={playSongFromList}
+            currentSong={player.currentSong}
+            onPlaySongFromList={player.playSongFromList}
             onCreatePlaylist={handleCreatePlaylist}
-            addToQueue={addToQueue}
+            addToQueue={player.addToQueue}
             onDeleteSong={deleteSong}
             onUpdateSong={updateSong}
             onAddSongToPlaylist={addSongToPlaylist}
@@ -301,8 +187,8 @@ function App() {
           <Playlists
             playlists={playlists}
             allSongs={songs}
-            onPlaySongFromList={playSongFromList}
-            addToQueue={addToQueue}
+            onPlaySongFromList={player.playSongFromList}
+            addToQueue={player.addToQueue}
             t={t}
             onCreatePlaylist={handleCreatePlaylist}
             onDeletePlaylist={deletePlaylist}
@@ -392,17 +278,18 @@ function App() {
         }}
       >
         <PlayerBar
-          currentSong={currentSong}
-          queue={queue}
-          removeFromQueue={removeFromQueue}
-          playNext={playNext}
-          playPrev={playPrev}
-          reorderQueue={reorderQueue}
-          repeatMode={repeatMode}
-          setRepeatMode={setRepeatMode}
-          isShuffle={isShuffle}
-          setIsShuffle={setIsShuffle}
-          playTrigger={playTrigger}
+          currentSong={player.currentSong}
+          queue={player.queue}
+          removeFromQueue={player.removeFromQueueAt}
+          playNext={player.playNext}
+          playPrev={player.playPrev}
+          reorderQueue={player.reorderQueue}
+          repeatMode={player.repeatMode}
+          setRepeatMode={player.setRepeatMode}
+          isShuffle={player.isShuffle}
+          setIsShuffle={player.setShuffle}
+          playToken={player.playToken}
+          onSongPlayed={handleSongPlayed}
           t={t}
           theme={theme}
         />

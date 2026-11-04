@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Playlist, Song } from '../App';
+import type { Playlist, Song } from '../types';
 import {
   Play,
   Music,

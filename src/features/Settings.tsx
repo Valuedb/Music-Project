@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Song } from '../App';
+import type { Song } from '../types';
 import { parseBlob } from 'music-metadata';
 import { Upload, Globe, Music, Palette, Sun, Moon } from 'lucide-react';
 import type { PaletteType, ThemeMode } from '../theme';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Clock, Flame, X, Play, ArrowLeft } from 'lucide-react';
-import type { Song } from '../App';
+import type { Song } from '../types';
 
 interface HomeProps {
   songs: Song[];

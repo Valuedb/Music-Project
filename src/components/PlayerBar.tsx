@@ -1,27 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Song } from '../App';
-import type { RepeatMode } from '../App';
+import { PLAY_COUNT_THRESHOLD_SECONDS } from '../player/constants';
+import type { RepeatMode, Song } from '../types';
 
 interface PlayerBarProps {
   currentSong: Song | null;
   queue: Song[];
-  removeFromQueue: (id: string) => void;
-  playNext: () => void;
-  playPrev: () => void;
+  removeFromQueue: (index: number) => void;
+  playNext: () => boolean;
+  playPrev: () => boolean;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   repeatMode: RepeatMode;
   setRepeatMode: (mode: RepeatMode) => void;
   isShuffle: boolean;
   setIsShuffle: (val: boolean) => void;
-  playTrigger: number;
+  playToken: number;
+  onSongPlayed: (id: string) => void;
   t: any;
   theme: any;
 }
 
 export const PlayerBar = ({ 
   currentSong, queue, removeFromQueue, playNext, playPrev, reorderQueue,
-  repeatMode, setRepeatMode, isShuffle, setIsShuffle, playTrigger, t, theme
+  repeatMode, setRepeatMode, isShuffle, setIsShuffle, playToken, onSongPlayed, t, theme
 }: PlayerBarProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -44,17 +45,43 @@ export const PlayerBar = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showQueue]);
 
+  /** برای هر پخش فقط یک بار playCount زیاد بشه */
+  const countedRef = useRef(false);
+  const songUrl = currentSong?.fileUrl ?? null;
+
+  // بارگذاری و پخش آهنگ. وابسته به آدرس فایل و playToken است (نه کل آبجکت آهنگ):
+  // ویرایش اطلاعات آهنگ، پخش را از اول شروع نمی‌کند، ولی انتخاب مجدد همان آهنگ ریستارتش می‌کند.
   useEffect(() => {
-    if (currentSong && audioRef.current) {
-      audioRef.current.src = currentSong.fileUrl;
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(err => console.error(err));
+    const audio = audioRef.current;
+    if (!audio) return;
+    countedRef.current = false;
+
+    if (!songUrl) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      return;
     }
-  }, [currentSong, playTrigger]);
+
+    audio.src = songUrl;
+    audio.play().catch((err: unknown) => {
+      if (err instanceof DOMException && err.name === 'AbortError') return; // با آهنگ دیگری جایگزین شد
+      console.error(err);
+    });
+  }, [songUrl, playToken]);
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-      setDuration(audioRef.current.duration || 0);
+    const audio = audioRef.current;
+    if (!audio) return;
+    setCurrentTime(audio.currentTime);
+    setDuration(audio.duration || 0);
+
+    if (currentSong && !countedRef.current) {
+      const threshold = Math.min(PLAY_COUNT_THRESHOLD_SECONDS, (audio.duration || Infinity) / 2);
+      if (audio.currentTime >= threshold) {
+        countedRef.current = true;
+        onSongPlayed(currentSong.id);
+      }
     }
   };
 
@@ -66,9 +93,10 @@ export const PlayerBar = ({
   };
 
   const togglePlay = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
-    else { audioRef.current.play(); setIsPlaying(true); }
+    const audio = audioRef.current;
+    if (!audio || !currentSong) return;
+    if (audio.paused) audio.play().catch(console.error);
+    else audio.pause();
   };
 
   const toggleRepeat = () => {
@@ -85,13 +113,16 @@ export const PlayerBar = ({
 
   const handleSongEnd = () => {
     if (repeatMode === 'one') {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play();
+      const audio = audioRef.current;
+      if (audio) {
+        countedRef.current = false; // هر دور تکرار یک پخش حساب می‌شود
+        audio.currentTime = 0;
+        audio.play().catch(console.error);
       }
-    } else {
-      playNext();
+      return;
     }
+    // آخر لیست و تکرار خاموش: آهنگ بعدی وجود ندارد و پخش متوقف می‌ماند
+    if (!playNext()) setIsPlaying(false);
   };
 
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
@@ -163,7 +194,7 @@ export const PlayerBar = ({
                     key={song.id + index} draggable 
                     onDragStart={(e) => e.dataTransfer.setData('text/plain', index.toString())} 
                     onDragOver={(e) => e.preventDefault()} 
-                    onDrop={(e) => { e.preventDefault(); reorderQueue(Number(e.dataTransfer.getData('text/plain')), index); }} 
+                    onDrop={(e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain'), 10); if (!Number.isNaN(from)) reorderQueue(from, index); }} 
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', padding: '8px', borderRadius: theme.radius.md, cursor: 'grab', backgroundColor: 'rgba(255,255,255,0.05)', transition: 'background 0.2s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
@@ -173,7 +204,7 @@ export const PlayerBar = ({
                       <div style={{ fontSize: '14px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#ffffff' }}>{song.name}</div>
                       <div style={{ fontSize: '12px', color: '#a1a1a6' }}>{song.artist}</div>
                     </div>
-                    <button onClick={() => removeFromQueue(song.id)} style={{ background: 'none', border: 'none', color: '#a1a1a6', cursor: 'pointer', pointerEvents: 'auto', padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.color = theme.colors.danger; e.currentTarget.style.transform = 'scale(1.15)'; }} onMouseLeave={(e) => { e.currentTarget.style.color = '#a1a1a6'; e.currentTarget.style.transform = 'scale(1)'; }}>
+                    <button onClick={() => removeFromQueue(index)} style={{ background: 'none', border: 'none', color: '#a1a1a6', cursor: 'pointer', pointerEvents: 'auto', padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.color = theme.colors.danger; e.currentTarget.style.transform = 'scale(1.15)'; }} onMouseLeave={(e) => { e.currentTarget.style.color = '#a1a1a6'; e.currentTarget.style.transform = 'scale(1)'; }}>
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/>
                       </svg>
@@ -274,7 +305,7 @@ export const PlayerBar = ({
           <span style={{ fontSize: '13px', fontWeight: '500' }}>{t.queue}</span>
         </button>
       </div>
-      <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnd} />
+      <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnd} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
     </div>
   );
 };
