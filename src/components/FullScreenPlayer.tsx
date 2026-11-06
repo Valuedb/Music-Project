@@ -134,9 +134,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               flexDirection: 'column',
               height: '100%',
               width: '100%',
-              maxWidth: '460px',
+              maxWidth: '420px',
               margin: '0 auto',
-              padding: 'clamp(14px, 2.5vh, 24px) 24px clamp(18px, 3vh, 32px) 24px',
+              padding: 'clamp(12px, 2vh, 18px) 20px clamp(36px, 8vh, 60px) 20px',
               boxSizing: 'border-box',
               justifyContent: 'space-between',
             }}
@@ -148,11 +148,11 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                 aria-label="Close"
                 style={{
                   ...btnStyle,
-                  width: '42px',
-                  height: '5px',
-                  borderRadius: '3px',
+                  width: '38px',
+                  height: '4px',
+                  borderRadius: '2px',
                   backgroundColor: 'rgba(255, 255, 255, 0.35)',
-                  marginBottom: '14px',
+                  marginBottom: '10px',
                 }}
               />
 
@@ -221,7 +221,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               </div>
             </div>
 
-            {/* بخش میانی: کاور بزرگ یا صف آهنگ‌ها */}
+            {/* بخش میانی: کاور با ابعاد بهینه‌شده و اطلاعات آهنگ */}
             <div
               style={{
                 flex: 1,
@@ -230,7 +230,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                 justifyContent: 'center',
                 alignItems: 'center',
                 minHeight: 0,
-                padding: '12px 0',
+                padding: '4px 0',
                 width: '100%',
               }}
             >
@@ -239,7 +239,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   style={{
                     width: '100%',
                     height: '100%',
-                    maxHeight: '340px',
+                    maxHeight: '320px',
                     backgroundColor: 'rgba(25, 25, 28, 0.85)',
                     backdropFilter: 'blur(20px)',
                     borderRadius: '20px',
@@ -274,7 +274,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                         <img
                           src={song.cover}
                           alt=""
-                          style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover' }}
+                          style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
                         />
                         <div style={{ flex: 1, overflow: 'hidden' }}>
                           <div style={{ fontSize: '14px', fontWeight: '500', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -306,18 +306,18 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                     src={currentSong.cover}
                     alt={currentSong.name}
                     style={{
-                      width: 'min(270px, 68vw)',
-                      height: 'min(270px, 68vw)',
-                      borderRadius: '24px',
+                      width: 'min(190px, 48vw, 24vh)',
+                      height: 'min(190px, 48vw, 24vh)',
+                      borderRadius: '18px',
                       objectFit: 'cover',
-                      boxShadow: '0 20px 48px rgba(0,0,0,0.6)',
+                      boxShadow: '0 16px 36px rgba(0,0,0,0.5)',
                       border: '1px solid rgba(255, 255, 255, 0.12)',
                     }}
                   />
-                  <div style={{ marginTop: '20px', textAlign: 'center', width: '100%', padding: '0 10px', boxSizing: 'border-box' }}>
+                  <div style={{ marginTop: '14px', textAlign: 'center', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
                     <div
                       style={{
-                        fontSize: 'clamp(18px, 4.5vw, 22px)',
+                        fontSize: 'clamp(16px, 4.2vw, 20px)',
                         fontWeight: '700',
                         color: songTitleColor,
                         whiteSpace: 'nowrap',
@@ -329,9 +329,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                     </div>
                     <div
                       style={{
-                        fontSize: 'clamp(13px, 3.5vw, 15px)',
+                        fontSize: 'clamp(12px, 3.2vw, 14px)',
                         color: artistColor,
-                        marginTop: '4px',
+                        marginTop: '3px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -345,7 +345,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             </div>
 
             {/* بخش کنترل‌ها و نوار پیشرفت */}
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* نوار پیشرفت دقیقا با استایل پلیربار کاربر */}
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}
@@ -401,14 +401,14 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                 </span>
               </div>
 
-              {/* دکمه‌های کنترل با همان آیکون‌ها و استایل اصلی */}
+              {/* دکمه‌های کنترل با همان آیکون‌ها و استایل اصلی (دکمه پلی بدون کادر دایره‌ای) */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '0 12px',
-                  marginTop: '4px',
+                  padding: '0 8px',
+                  marginTop: '2px',
                 }}
               >
                 <button
@@ -450,23 +450,19 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   onClick={onTogglePlay}
                   style={{
                     ...btnStyle,
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.16)',
                     color: '#ffffff',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                    padding: '8px',
+                    transition: 'transform 0.2s',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
                   onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
                 >
                   {isPlaying ? (
-                    <svg width="30" height="30" viewBox="0 0 16 16" fill="currentColor">
+                    <svg width="34" height="34" viewBox="0 0 16 16" fill="currentColor">
                       <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5" />
                     </svg>
                   ) : (
-                    <svg width="30" height="30" viewBox="0 0 16 16" fill="currentColor" style={{ marginLeft: '3px' }}>
+                    <svg width="34" height="34" viewBox="0 0 16 16" fill="currentColor" style={{ marginLeft: '3px' }}>
                       <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z" />
                     </svg>
                   )}
