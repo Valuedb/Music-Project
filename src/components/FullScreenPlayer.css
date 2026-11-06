@@ -1,0 +1,176 @@
+/* Responsive layout for the full-screen music player. */
+.full-screen-player {
+  --fsp-control-size: 48px;
+}
+
+.full-screen-player__content {
+  width: min(100%, 560px) !important;
+  max-width: 560px !important;
+  padding: max(16px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)) !important;
+  gap: clamp(16px, 3vh, 32px);
+}
+
+.full-screen-player__main {
+  flex: 1 1 auto;
+}
+
+.full-screen-player__artwork-group {
+  gap: 0;
+}
+
+.full-screen-player__artwork {
+  width: min(72vw, 38vh, 340px) !important;
+  height: min(72vw, 38vh, 340px) !important;
+  max-width: 100%;
+  flex: 0 1 auto;
+  transform: scale(0.94);
+  transition: transform 650ms cubic-bezier(0.2, 0.75, 0.25, 1), box-shadow 650ms ease;
+  will-change: transform;
+}
+
+.full-screen-player.is-playing .full-screen-player__artwork {
+  transform: scale(1);
+}
+
+.full-screen-player__track-info {
+  transform: scale(0.98);
+  transform-origin: center top;
+  transition: transform 650ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.full-screen-player.is-playing .full-screen-player__track-info {
+  transform: scale(1);
+}
+
+.full-screen-player__progress,
+.full-screen-player__control-buttons,
+.full-screen-player__volume {
+  flex-shrink: 0;
+}
+
+.full-screen-player__control-buttons {
+  min-height: 56px;
+}
+
+.full-screen-player__control-buttons button {
+  min-width: var(--fsp-control-size);
+  min-height: var(--fsp-control-size);
+  touch-action: manipulation;
+}
+
+.full-screen-player__progress input,
+.full-screen-player__volume input {
+  touch-action: pan-y;
+}
+
+@media (max-width: 600px) {
+  .full-screen-player__content {
+    max-width: 100% !important;
+    padding: max(12px, env(safe-area-inset-top)) clamp(20px, 6vw, 28px) max(18px, env(safe-area-inset-bottom)) !important;
+    gap: clamp(12px, 2.5vh, 22px);
+  }
+
+  .full-screen-player__header button {
+    flex-shrink: 0;
+  }
+
+  .full-screen-player__main {
+    justify-content: center;
+    padding: 0 !important;
+  }
+
+  .full-screen-player__artwork {
+    width: min(78vw, 39svh, 340px) !important;
+    height: min(78vw, 39svh, 340px) !important;
+    border-radius: 22px !important;
+  }
+
+  .full-screen-player__track-info {
+    margin-top: clamp(16px, 2.5vh, 24px) !important;
+    padding-inline: 4px !important;
+  }
+
+  .full-screen-player__controls {
+    gap: clamp(12px, 2vh, 18px) !important;
+  }
+
+  .full-screen-player__progress {
+    gap: 8px !important;
+  }
+
+  .full-screen-player__progress > span {
+    width: 38px !important;
+    font-size: 12px !important;
+  }
+
+  .full-screen-player__control-buttons {
+    padding-inline: 0 !important;
+    margin-top: 0 !important;
+    min-height: 68px;
+  }
+
+  .full-screen-player__control-buttons button {
+    min-width: 52px;
+    min-height: 56px;
+    padding: 10px !important;
+  }
+
+  .full-screen-player__control-buttons button:nth-child(2) svg,
+  .full-screen-player__control-buttons button:nth-child(4) svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .full-screen-player__control-buttons button:nth-child(3) svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .full-screen-player__volume {
+    gap: 10px !important;
+    margin-top: 0 !important;
+    padding-inline: 2px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .full-screen-player__content {
+    padding-inline: 16px !important;
+  }
+
+  .full-screen-player__artwork {
+    width: min(76vw, 34svh, 300px) !important;
+    height: min(76vw, 34svh, 300px) !important;
+  }
+
+  .full-screen-player__control-buttons button {
+    min-width: 46px;
+    padding: 8px !important;
+  }
+}
+
+@media (max-height: 700px) and (max-width: 600px) {
+  .full-screen-player__content {
+    gap: 10px;
+  }
+
+  .full-screen-player__artwork {
+    width: min(68vw, 31svh, 270px) !important;
+    height: min(68vw, 31svh, 270px) !important;
+  }
+
+  .full-screen-player__track-info {
+    margin-top: 12px !important;
+  }
+
+  .full-screen-player__controls {
+    gap: 8px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .full-screen-player__artwork,
+  .full-screen-player__track-info {
+    transition: none;
+  }
+}
