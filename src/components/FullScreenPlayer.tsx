@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RepeatMode, Song } from '../types';
+import './FullScreenPlayer.css';
 
 interface FullScreenPlayerProps {
   isOpen: boolean;
@@ -84,6 +85,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     <AnimatePresence>
       {isOpen && currentSong && (
         <motion.div
+          className={`full-screen-player ${isPlaying ? 'is-playing' : 'is-paused'}`}
           key="full-screen-player"
           initial={{ y: '100%', opacity: 0.8 }}
           animate={{ y: 0, opacity: 1 }}
@@ -127,6 +129,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
           {/* محتوای داخلی تمام‌صفحه */}
           <div
+            className="full-screen-player__content"
             style={{
               position: 'relative',
               zIndex: 2,
@@ -142,7 +145,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             }}
           >
             {/* هدر: نشانگر سوایپ و دکمه بستن */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <div className="full-screen-player__header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
               <button
                 onClick={onClose}
                 aria-label="Close"
@@ -223,6 +226,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
             {/* بخش میانی: کاور با ابعاد بهینه‌شده و اطلاعات آهنگ */}
             <div
+              className="full-screen-player__main"
               style={{
                 flex: 1,
                 display: 'flex',
@@ -301,8 +305,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                <div className="full-screen-player__artwork-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                   <img
+                    className="full-screen-player__artwork"
                     src={currentSong.cover}
                     alt={currentSong.name}
                     style={{
@@ -314,7 +319,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                       border: '1px solid rgba(255, 255, 255, 0.12)',
                     }}
                   />
-                  <div style={{ marginTop: '14px', textAlign: 'center', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
+                  <div className="full-screen-player__track-info" style={{ marginTop: '14px', textAlign: 'center', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
                     <div
                       style={{
                         fontSize: 'clamp(16px, 4.2vw, 20px)',
@@ -345,9 +350,10 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             </div>
 
             {/* بخش کنترل‌ها و نوار پیشرفت */}
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="full-screen-player__controls" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* نوار پیشرفت دقیقا با استایل پلیربار کاربر */}
               <div
+                className="full-screen-player__progress"
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}
                 onMouseEnter={() => setIsHoveringProgress(true)}
                 onMouseLeave={() => setIsHoveringProgress(false)}
@@ -403,6 +409,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
               {/* دکمه‌های کنترل با همان آیکون‌ها و استایل اصلی (دکمه پلی بدون کادر دایره‌ای) */}
               <div
+                className="full-screen-player__control-buttons"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -508,7 +515,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               </div>
 
               {/* اسلایدر ولوم صدا */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px', marginTop: '6px' }}>
+              <div className="full-screen-player__volume" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px', marginTop: '6px' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill={iconInactiveColor}>
                   <path d="M7 9v6h4l5 5V4L11 9H7z" />
                 </svg>
