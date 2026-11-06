@@ -75,6 +75,12 @@ export const translations = {
     queue: "در صف پخش",
     queueEmpty: "صف خالیه.",
     noSongSelected: "آهنگی انتخاب نشده",
+    nowPlaying: "در حال پخش",
+    lyrics: "متن ترانه",
+    noLyrics: "متن ترانه‌ای برای این آهنگ موجود نیست",
+    playingFrom: "در حال پخش از",
+    closeNowPlaying: "کوچک کردن پلیر",
+    volume: "میزان صدا",
     
     // # ویرایشگر (Editor)
     editSong: "ویرایش آهنگ",
@@ -164,6 +170,12 @@ export const translations = {
     queue: "Up Next",
     queueEmpty: "Queue is empty.",
     noSongSelected: "No song selected",
+    nowPlaying: "Now Playing",
+    lyrics: "Lyrics",
+    noLyrics: "No lyrics available for this song",
+    playingFrom: "Playing from",
+    closeNowPlaying: "Minimize player",
+    volume: "Volume",
 
     // # ویرایشگر (Editor)
       editSong: "Edit Song",

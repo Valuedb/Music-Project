@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Maximize2 } from 'lucide-react';
 import { PLAY_COUNT_THRESHOLD_SECONDS } from '../player/constants';
 import type { RepeatMode, Song } from '../types';
+import { NowPlayingSheet } from './nowPlaying/NowPlayingSheet';
+import { syncMediaSession } from '../utils/mediaSession';
 
 interface PlayerBarProps {
   currentSong: Song | null;
@@ -32,6 +35,7 @@ export const PlayerBar = ({
   const [volume, setVolume] = useState(1);
   const [isHoveringProgress, setIsHoveringProgress] = useState(false);
   const [isHoveringVolume, setIsHoveringVolume] = useState(false);
+  const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
 
   const queueRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +114,39 @@ export const PlayerBar = ({
     setVolume(vol);
     if (audioRef.current) audioRef.current.volume = vol;
   };
+
+  const handleSeek = useCallback((newTime: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  }, []);
+
+  const handleDirectVolumeChange = useCallback((newVol: number) => {
+    const clamped = Math.max(0, Math.min(1, newVol));
+    setVolume(clamped);
+    if (audioRef.current) audioRef.current.volume = clamped;
+  }, []);
+
+  useEffect(() => {
+    syncMediaSession(currentSong, isPlaying, {
+      onPlay: () => {
+        audioRef.current?.play().catch(console.error);
+      },
+      onPause: () => {
+        audioRef.current?.pause();
+      },
+      onNext: () => {
+        playNext();
+      },
+      onPrev: () => {
+        playPrev();
+      },
+      onSeek: (time) => {
+        handleSeek(time);
+      },
+    });
+  }, [currentSong, isPlaying, playNext, playPrev, handleSeek]);
 
   const handleSongEnd = () => {
     if (repeatMode === 'one') {
@@ -217,11 +254,51 @@ export const PlayerBar = ({
         )}
       </AnimatePresence>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '220px' }}>
+      <div 
+        onClick={() => currentSong && setIsNowPlayingOpen(true)}
+        title={currentSong ? (t.nowPlaying || 'نمایش صفحه پخش') : ''}
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px', 
+          width: '230px',
+          cursor: currentSong ? 'pointer' : 'default',
+          userSelect: 'none',
+        }}
+      >
         {currentSong ? (
           <>
-            <img src={currentSong.cover} alt="" style={{ width: '48px', height: '48px', borderRadius: theme.radius.sm, objectFit: 'cover', boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }} />
-            <div style={{ overflow: 'hidden' }}>
+            <div style={{ position: 'relative', flexShrink: 0, width: '48px', height: '48px' }}>
+              <img 
+                src={currentSong.cover} 
+                alt="" 
+                style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: theme.radius.sm, 
+                  objectFit: 'cover', 
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.3)' 
+                }} 
+              />
+              <div 
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.35)',
+                  borderRadius: theme.radius.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0,
+                  transition: 'opacity 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
+              >
+                <Maximize2 size={16} color="#ffffff" />
+              </div>
+            </div>
+            <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: '600', fontSize: '14px', color: songTitleColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentSong.name}</div>
               <div style={{ color: artistColor, fontSize: '12px', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentSong.artist}</div>
             </div>
@@ -306,6 +383,29 @@ export const PlayerBar = ({
         </button>
       </div>
       <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnd} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+
+      <NowPlayingSheet
+        isOpen={isNowPlayingOpen}
+        onClose={() => setIsNowPlayingOpen(false)}
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        onTogglePlay={togglePlay}
+        onNext={playNext}
+        onPrev={playPrev}
+        currentTime={currentTime}
+        duration={duration}
+        onSeek={handleSeek}
+        volume={volume}
+        onVolumeChange={handleDirectVolumeChange}
+        isShuffle={isShuffle}
+        onToggleShuffle={() => setIsShuffle(!isShuffle)}
+        repeatMode={repeatMode}
+        onToggleRepeat={toggleRepeat}
+        queue={queue}
+        onRemoveFromQueue={removeFromQueue}
+        t={t}
+        theme={theme}
+      />
     </div>
   );
 };

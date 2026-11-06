@@ -1,0 +1,8 @@
+{
+  "name": "Music Player",
+  "description": "Modern music player web app with playlist management, local audio file loading, metadata extraction, Persian and English localization, and customizable themes.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

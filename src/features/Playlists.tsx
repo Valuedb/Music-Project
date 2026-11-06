@@ -109,7 +109,7 @@ const PlaylistMenuButton = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.background,
+      backgroundColor: isOpen ? theme.colors.surface : theme.colors.background,
       border: `1px solid ${theme.colors.border}`,
       color: theme.colors.textPrimary,
       cursor: 'pointer',
@@ -124,7 +124,7 @@ const PlaylistMenuButton = ({
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.transform = 'scale(1)';
-      e.currentTarget.style.backgroundColor = theme.colors.background;
+      e.currentTarget.style.backgroundColor = isOpen ? theme.colors.surface : theme.colors.background;
     }}
   >
     <MoreVertical size={16} />
