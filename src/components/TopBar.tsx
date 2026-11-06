@@ -6,7 +6,7 @@ interface TopBarProps {
   setCurrentTab: (tab: 'home' | 'allSongs' | 'playlists' | 'settings') => void;
   t: any;
   onSearch: (term: string) => void;
-  theme: any; // # اضافه شد
+  theme: any;
 }
 
 export const TopBar = ({ currentTab, setCurrentTab, t, onSearch, theme }: TopBarProps) => {

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DEMO_SONGS } from './player/demoSongs';
 import { PlayerBar } from './components/PlayerBar';
 import { TopBar } from './components/TopBar';
 import { Home } from './features/Home';
@@ -27,9 +28,16 @@ function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [colorPalette, setColorPalette] = useState<PaletteType>('default');
 
-  const [songs, setSongs] = usePersistentState<Song[]>(STORAGE_KEYS.library, [], isSongList);
+  const [songs, setSongs] = usePersistentState<Song[]>(STORAGE_KEYS.library, DEMO_SONGS, isSongList);
   const [playlists, setPlaylists] = usePersistentState<Playlist[]>(STORAGE_KEYS.playlists, [], isPlaylistList);
   const player = usePlayer(songs);
+
+  // در صورت خالی بودن دیتابیس لوکال، ۴ آهنگ دمو به صورت خودکار بارگذاری شوند
+  useEffect(() => {
+    if (songs.length === 0) {
+      setSongs(DEMO_SONGS);
+    }
+  }, [songs.length, setSongs]);
 
   const t = translations[language];
   const theme = getTheme(themeMode, colorPalette);
