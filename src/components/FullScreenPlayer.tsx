@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Heart } from 'lucide-react';
 import type { RepeatMode, Song } from '../types';
 
 interface FullScreenPlayerProps {
@@ -22,6 +23,7 @@ interface FullScreenPlayerProps {
   onToggleRepeat: () => void;
   queue: Song[];
   removeFromQueue: (index: number) => void;
+  onToggleFavorite?: (id: string) => void;
   t: any;
   theme: any;
 }
@@ -45,6 +47,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   onToggleRepeat,
   queue,
   removeFromQueue,
+  onToggleFavorite,
   t,
   theme,
 }) => {
@@ -202,22 +205,59 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setShowQueue(!showQueue)}
-                  style={{
-                    ...btnStyle,
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    backgroundColor: showQueue ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)',
-                    color: showQueue ? iconActiveColor : '#ffffff',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
-                  </svg>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {onToggleFavorite && (
+                    <button
+                      onClick={() => onToggleFavorite(currentSong.id)}
+                      title={
+                        currentSong.isFavorite
+                          ? t.removeFromFavorites || 'Remove from Favourites'
+                          : t.addToFavorites || 'Add to Favourites'
+                      }
+                      style={{
+                        ...btnStyle,
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        backgroundColor: currentSong.isFavorite
+                          ? 'rgba(255, 59, 48, 0.22)'
+                          : 'rgba(255, 255, 255, 0.1)',
+                        color: currentSong.isFavorite ? '#ff3b30' : '#ffffff',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <Heart
+                        size={18}
+                        fill={currentSong.isFavorite ? '#ff3b30' : 'none'}
+                        color={currentSong.isFavorite ? '#ff3b30' : '#ffffff'}
+                      />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setShowQueue(!showQueue)}
+                    style={{
+                      ...btnStyle,
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      backgroundColor: showQueue
+                        ? 'rgba(255, 255, 255, 0.25)'
+                        : 'rgba(255, 255, 255, 0.1)',
+                      color: showQueue ? iconActiveColor : '#ffffff',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
 

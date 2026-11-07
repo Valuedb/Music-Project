@@ -85,6 +85,8 @@ export const DEMO_SONGS: Song[] = [
     duration: 12,
     playCount: 4,
     addedAt: Date.now() - 86400000 * 3,
+    isFavorite: true,
+    lastPlayedAt: Date.now() - 3600000 * 4,
     cover: createCoverSvg('Acoustic Memories', '#FA2D48', '#FF7A59', '🎸'),
     fileUrl: createWavDataUri(261.63, 12, true), // C4 chord
   },
@@ -97,6 +99,8 @@ export const DEMO_SONGS: Song[] = [
     duration: 10,
     playCount: 7,
     addedAt: Date.now() - 86400000 * 2,
+    isFavorite: false,
+    lastPlayedAt: Date.now() - 3600000 * 8,
     cover: createCoverSvg('Midnight Sunset', '#5E5CE6', '#BF5AF2', '🌆'),
     fileUrl: createWavDataUri(329.63, 10, true), // E4 chord
   },
@@ -109,6 +113,8 @@ export const DEMO_SONGS: Song[] = [
     duration: 14,
     playCount: 12,
     addedAt: Date.now() - 86400000,
+    isFavorite: true,
+    lastPlayedAt: Date.now() - 3600000 * 1,
     cover: createCoverSvg('Starlight Serenade', '#0A84FF', '#5AC8FA', '✨'),
     fileUrl: createWavDataUri(392.0, 14, true), // G4 chord
   },

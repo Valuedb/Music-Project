@@ -11,6 +11,8 @@ import {
   FolderPlus,
   Check,
   MoreHorizontal,
+  Heart,
+  ArrowLeft,
 } from 'lucide-react';
 import type { Song, Playlist } from '../types';
 import { EditSongModal } from '../components/EditSongModal';
@@ -22,14 +24,18 @@ interface AllSongsProps {
   playlists: Playlist[];
   currentSong: Song | null;
   onPlaySongFromList: (song: Song, list: Song[]) => void;
-  onCreatePlaylist: (name: string, selectedSongs: Song[]) => void;
+  onCreatePlaylist?: (name: string, selectedSongs: Song[]) => void;
   addToQueue: (song: Song) => void;
   onDeleteSong: (id: string) => void;
   onUpdateSong: (updatedSong: Song) => void;
   onAddSongToPlaylist: (playlistId: string, song: Song) => void;
+  onToggleFavorite?: (id: string) => void;
   t: any;
-  searchTerm: string;
+  searchTerm?: string;
   theme: any;
+  title?: string;
+  onBack?: () => void;
+  emptyMessage?: string;
 }
 
 // ================= کامپوننت اصلی =================
@@ -39,13 +45,18 @@ export const AllSongs = ({
   playlists,
   currentSong,
   onPlaySongFromList,
+  onCreatePlaylist: _onCreatePlaylist,
   addToQueue,
   onDeleteSong,
   onUpdateSong,
   onAddSongToPlaylist,
+  onToggleFavorite,
   t,
-  searchTerm,
+  searchTerm = '',
   theme,
+  title,
+  onBack,
+  emptyMessage,
 }: AllSongsProps) => {
   // استیت‌های انتخاب
   const [selectedSongs, setSelectedSongs] = useState<string[]>([]);
@@ -251,6 +262,91 @@ export const AllSongs = ({
   // ================= رندر =================
   return (
     <div ref={pageRef} style={styles.container}>
+      {/* هدر دسته‌بندی در صورت باز شدن از بخش خانه */}
+      {title && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            marginBottom: '18px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {onBack && (
+              <button
+                onClick={onBack}
+                style={{
+                  background: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  color: theme.colors.textPrimary,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  padding: '7px 14px',
+                  borderRadius: theme.radius.md,
+                  transition: 'transform 0.2s, background-color 0.2s',
+                }}
+              >
+                <ArrowLeft size={16} /> {t.back}
+              </button>
+            )}
+            <h1
+              style={{
+                fontSize: 'clamp(20px, 2.5vw, 26px)',
+                fontWeight: '800',
+                color: theme.colors.textPrimary,
+                margin: 0,
+              }}
+            >
+              {title}
+            </h1>
+            <span
+              style={{
+                fontSize: '13px',
+                color: theme.colors.textSecondary,
+                fontWeight: '500',
+              }}
+            >
+              ({filteredAndSortedSongs.length} {t.tracksCount || 'آهنگ'})
+            </span>
+          </div>
+
+          {filteredAndSortedSongs.length > 0 && !isSelectMode && (
+            <button
+              onClick={() =>
+                onPlaySongFromList(
+                  filteredAndSortedSongs[0],
+                  filteredAndSortedSongs
+                )
+              }
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 16px',
+                borderRadius: theme.radius.md,
+                border: 'none',
+                backgroundColor: theme.colors.primary,
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '13px',
+                transition: 'opacity 0.2s',
+              }}
+            >
+              <Play size={15} fill="#fff" />
+              <span>{t.playAll || 'پخش همه'}</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* نوار دکمه‌های بالا */}
       <div style={styles.headerActions}>
         <div style={{ marginInlineEnd: 'auto' }}>
@@ -378,9 +474,21 @@ export const AllSongs = ({
 
       {/* لیست آهنگ‌ها */}
       {filteredAndSortedSongs.length === 0 ? (
-        <p style={{ color: theme.colors.textSecondary }}>
-          {songs.length === 0 ? t.noSongs : t.notFound}
-        </p>
+        <div
+          style={{
+            padding: '50px 20px',
+            textAlign: 'center',
+            color: theme.colors.textSecondary,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.lg,
+            border: `1px dashed ${theme.colors.border}`,
+            margin: '20px 0',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: '15px', fontWeight: '500' }}>
+            {emptyMessage || (songs.length === 0 ? t.noSongs : t.notFound)}
+          </p>
+        </div>
       ) : (
         <div style={styles.listContainer}>
           {filteredAndSortedSongs.map((song) => {
@@ -480,6 +588,39 @@ export const AllSongs = ({
                 <div style={styles.duration}>
                   {formatTime(song.duration || 0)}
                 </div>
+
+                {onToggleFavorite && !isSelectMode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(song.id);
+                    }}
+                    title={
+                      song.isFavorite
+                        ? t.removeFromFavorites || 'Remove from Favourites'
+                        : t.addToFavorites || 'Add to Favourites'
+                    }
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: song.isFavorite ? '#ff3b30' : theme.colors.textSecondary,
+                      opacity: song.isFavorite ? 1 : 0.65,
+                      borderRadius: '50%',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <Heart
+                      size={17}
+                      fill={song.isFavorite ? '#ff3b30' : 'none'}
+                      color={song.isFavorite ? '#ff3b30' : 'currentColor'}
+                    />
+                  </button>
+                )}
 
                 {!isSelectMode && (
                   <div
@@ -603,6 +744,37 @@ export const AllSongs = ({
                           <ListPlus size={16} />{' '}
                           {t.addToQueue}
                         </button>
+                        {onToggleFavorite && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleFavorite(song.id);
+                              setActiveMenuId(null);
+                            }}
+                            style={menuItemStyle(theme)}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                theme.colors.surface)
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                'transparent')
+                            }
+                          >
+                            <Heart
+                              size={16}
+                              fill={song.isFavorite ? '#ff3b30' : 'none'}
+                              color={
+                                song.isFavorite
+                                  ? '#ff3b30'
+                                  : theme.colors.textPrimary
+                              }
+                            />{' '}
+                            {song.isFavorite
+                              ? t.removeFromFavorites || 'Remove from Favourites'
+                              : t.addToFavorites || 'Add to Favourites'}
+                          </button>
+                        )}
                         <button
                           onClick={(e) =>
                             handleDelete(e, song.id)

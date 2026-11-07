@@ -53,11 +53,42 @@ function App() {
   const t = translations[language];
   const theme = getTheme(themeMode, colorPalette);
 
-  /** وقتی یک پخش «واقعی» حساب شد (نه فقط کلیک یا رد شدن)، شمارنده‌ی پخش زیاد می‌شه */
+  /** وقتی یک پخش «واقعی» حساب شد (نه فقط کلیک یا رد شدن)، شمارنده‌ی پخش زیاد می‌شه و تاریخ پخش ثبت می‌شه */
   const handleSongPlayed = (id: string) => {
     setSongs((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, playCount: s.playCount + 1 } : s))
+      prev.map((s) =>
+        s.id === id
+          ? { ...s, playCount: s.playCount + 1, lastPlayedAt: Date.now() }
+          : s
+      )
     );
+  };
+
+  /** تغییر وضعیت آهنگ محبوب (Favorite) */
+  const toggleFavoriteSong = (id: string) => {
+    setSongs((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, isFavorite: !s.isFavorite } : s
+      )
+    );
+    setPlaylists((prev) =>
+      prev.map((p) => ({
+        ...p,
+        songs: p.songs.map((s) =>
+          s.id === id ? { ...s, isFavorite: !s.isFavorite } : s
+        ),
+      }))
+    );
+  };
+
+  /** پخش یک آهنگ از لیست و به‌روزرسانی تاریخچه پخش (Recently Played) */
+  const handlePlaySongFromList = (song: Song, list: Song[]) => {
+    setSongs((prev) =>
+      prev.map((s) =>
+        s.id === song.id ? { ...s, lastPlayedAt: Date.now() } : s
+      )
+    );
+    player.playSongFromList(song, list);
   };
 
   const handleCreatePlaylist = (name: string, selectedSongs: Song[]) => {
@@ -181,9 +212,18 @@ function App() {
         return (
           <Home
             songs={songs}
-            onPlaySongFromList={player.playSongFromList}
+            playlists={playlists}
+            currentSong={player.currentSong}
+            onPlaySongFromList={handlePlaySongFromList}
+            onCreatePlaylist={handleCreatePlaylist}
+            addToQueue={player.addToQueue}
+            onDeleteSong={deleteSong}
+            onUpdateSong={updateSong}
+            onAddSongToPlaylist={addSongToPlaylist}
+            onToggleFavorite={toggleFavoriteSong}
             t={t}
             theme={theme}
+            language={language}
           />
         );
       case 'allSongs':
@@ -192,12 +232,13 @@ function App() {
             songs={songs}
             playlists={playlists}
             currentSong={player.currentSong}
-            onPlaySongFromList={player.playSongFromList}
+            onPlaySongFromList={handlePlaySongFromList}
             onCreatePlaylist={handleCreatePlaylist}
             addToQueue={player.addToQueue}
             onDeleteSong={deleteSong}
             onUpdateSong={updateSong}
             onAddSongToPlaylist={addSongToPlaylist}
+            onToggleFavorite={toggleFavoriteSong}
             t={t}
             searchTerm={searchTerm}
             theme={theme}
@@ -311,6 +352,7 @@ function App() {
           setIsShuffle={player.setShuffle}
           playToken={player.playToken}
           onSongPlayed={handleSongPlayed}
+          onToggleFavorite={toggleFavoriteSong}
           t={t}
           theme={theme}
         />

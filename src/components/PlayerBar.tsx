@@ -19,13 +19,15 @@ interface PlayerBarProps {
   setIsShuffle: (val: boolean) => void;
   playToken: number;
   onSongPlayed: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
   t: any;
   theme: any;
 }
 
 export const PlayerBar = ({ 
   currentSong, queue, removeFromQueue, playNext, playPrev, reorderQueue,
-  repeatMode, setRepeatMode, isShuffle, setIsShuffle, playToken, onSongPlayed, t, theme
+  repeatMode, setRepeatMode, isShuffle, setIsShuffle, playToken, onSongPlayed,
+  onToggleFavorite, t, theme
 }: PlayerBarProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -463,6 +465,7 @@ export const PlayerBar = ({
         onToggleRepeat={toggleRepeat}
         queue={queue}
         removeFromQueue={removeFromQueue}
+        onToggleFavorite={onToggleFavorite}
         t={t}
         theme={theme}
       />

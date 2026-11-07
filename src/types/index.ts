@@ -10,6 +10,8 @@ export interface Song {
   album?: string;
   year?: string;
   duration?: number;
+  isFavorite?: boolean;
+  lastPlayedAt?: number;
 }
 
 export interface Playlist {
