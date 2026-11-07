@@ -83,17 +83,38 @@ export const translations = {
     volume: "میزان صدا",
     
     // # ویرایشگر (Editor)
-    editSong: "ویرایش آهنگ",
+    editSong: "ویرایش اطلاعات آهنگ",
     songName: "نام آهنگ",
+    artist: "نام خواننده",
     album: "آلبوم",
     year: "سال انتشار",
     coverUrl: "آدرس تصویر کاور (URL)",
     addToPlaylist: "افزودن به لیست",
+    changeCover: "تغییر تصویر کاور",
+    uploadFromDevice: "انتخاب عکس از گالری / دستگاه",
+    resetCover: "بازنشانی کاور",
+    coverPreview: "پیش‌نمایش کاور",
+    dragOrClickCover: "برای تغییر کاور کلیک کنید یا عکس را بکشید",
     
+    // # اکولایزر و تنظیمات صدا
+    equalizer: "اکولایزر و تقویت صدا",
+    equalizerDesc: "شخصی‌سازی فرکانس‌ها و تقویت بیس خروجی",
+    enableEqualizer: "فعال‌سازی اکولایزر",
+    presets: "پریست‌های صوتی",
+    presetFlat: "تخت",
+    presetBassBoost: "بیس بوست",
+    presetPop: "پاپ",
+    presetRock: "راک",
+    presetJazz: "جاز",
+    presetVocal: "وکال",
+    presetElectronic: "الکترونیک",
+    presetCustom: "سفارشی",
+    bassBoost: "تقویت بیس (Bass Boost)",
+    db: "دسی‌بل",
+
     songs: "آهنگ",
     add: "افزودن",
     more: "بیشتر",
-
   },
 
   // ==========================================
@@ -178,12 +199,36 @@ export const translations = {
     volume: "Volume",
 
     // # ویرایشگر (Editor)
-      editSong: "Edit Song",
-      songName: "Song Name",
-      album: "Album",
-      year: "Year",
-      coverUrl: "Cover URL",
-      addToPlaylist: "Add to Playlist",
+    editSong: "Edit Song Info",
+    songName: "Song Name",
+    artist: "Artist",
+    album: "Album",
+    year: "Year",
+    coverUrl: "Cover URL",
+    addToPlaylist: "Add to Playlist",
+    changeCover: "Change Cover Image",
+    uploadFromDevice: "Choose photo from device",
+    resetCover: "Reset Cover",
+    coverPreview: "Cover Preview",
+    dragOrClickCover: "Click to select or change cover",
+
+    // # اکولایزر و تنظیمات صدا
+    equalizer: "Equalizer & Audio Effects",
+    equalizerDesc: "Customize audio frequencies & bass boost",
+    enableEqualizer: "Enable Equalizer",
+    presets: "Audio Presets",
+    presetFlat: "Flat",
+    presetBassBoost: "Bass Boost",
+    presetPop: "Pop",
+    presetRock: "Rock",
+    presetJazz: "Jazz",
+    presetVocal: "Vocal",
+    presetElectronic: "Electronic",
+    presetCustom: "Custom",
+    bassBoost: "Bass Boost",
+    db: "dB",
+
+    songs: "Songs",
   }
 };
 

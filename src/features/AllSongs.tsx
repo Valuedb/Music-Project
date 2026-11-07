@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   MoreVertical,
   ListPlus,
@@ -645,99 +646,102 @@ export const AllSongs = ({
       />
 
       {/* مودال انتخاب پلی‌لیست */}
-      {isPlaylistModalOpen && (
-        <div
-          onClick={() => setIsPlaylistModalOpen(false)}
-          style={styles.modalOverlay}
-        >
+      {isPlaylistModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            style={styles.modalBox(theme)}
+            onClick={() => setIsPlaylistModalOpen(false)}
+            style={styles.modalOverlay}
           >
-            <h3
-              style={{
-                margin: '0 0 20px 0',
-                color: theme.colors.textPrimary,
-                textAlign: 'center',
-              }}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={styles.modalBox(theme)}
             >
-              {t.selectPlaylist || 'انتخاب پلی‌لیست'}
-            </h3>
-            <div style={styles.modalList}>
-              {playlists.length === 0 ? (
-                <p
-                  style={{
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  {t.noPlaylists ||
-                    'هیچ پلی‌لیستی وجود ندارد.'}
-                </p>
-              ) : (
-                playlists.map((pl) => (
-                  <button
-                    key={pl.id}
-                    onClick={() =>
-                      setTargetPlaylistId(pl.id)
-                    }
+              <h3
+                style={{
+                  margin: '0 0 20px 0',
+                  color: theme.colors.textPrimary,
+                  textAlign: 'center',
+                }}
+              >
+                {t.selectPlaylist || 'انتخاب پلی‌لیست'}
+              </h3>
+              <div style={styles.modalList}>
+                {playlists.length === 0 ? (
+                  <p
                     style={{
-                      ...styles.modalItem(theme),
-                      borderColor:
-                        targetPlaylistId === pl.id
-                          ? theme.colors.primary
-                          : theme.colors.border,
-                      backgroundColor:
-                        targetPlaylistId === pl.id
-                          ? `${theme.colors.primary}20`
-                          : theme.colors.surface,
+                      color: theme.colors.textSecondary,
                     }}
                   >
-                    {pl.name}{' '}
-                    <span
+                    {t.noPlaylists ||
+                      'هیچ پلی‌لیستی وجود ندارد.'}
+                  </p>
+                ) : (
+                  playlists.map((pl) => (
+                    <button
+                      key={pl.id}
+                      onClick={() =>
+                        setTargetPlaylistId(pl.id)
+                      }
                       style={{
-                        fontSize: 12,
-                        color:
-                          theme.colors
-                            .textSecondary,
+                        ...styles.modalItem(theme),
+                        borderColor:
+                          targetPlaylistId === pl.id
+                            ? theme.colors.primary
+                            : theme.colors.border,
+                        backgroundColor:
+                          targetPlaylistId === pl.id
+                            ? `${theme.colors.primary}20`
+                            : theme.colors.surface,
                       }}
                     >
-                      ({pl.songs.length}{' '}
-                      {t.songs || 'آهنگ'})
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: '10px',
-                marginTop: '20px',
-              }}
-            >
-              <button
-                onClick={() =>
-                  setIsPlaylistModalOpen(false)
-                }
-                style={styles.modalBtn(theme, false)}
-              >
-                {t.cancel || 'لغو'}
-              </button>
-              <button
-                onClick={handleConfirmAddToPlaylist}
-                disabled={!targetPlaylistId}
-                style={styles.modalBtn(
-                  theme,
-                  true,
-                  !targetPlaylistId
+                      {pl.name}{' '}
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color:
+                            theme.colors
+                              .textSecondary,
+                        }}
+                      >
+                        ({pl.songs.length}{' '}
+                        {t.songs || 'آهنگ'})
+                      </span>
+                    </button>
+                  ))
                 )}
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '10px',
+                  marginTop: '20px',
+                }}
               >
-                {t.add || 'افزودن'}
-              </button>
+                <button
+                  onClick={() =>
+                    setIsPlaylistModalOpen(false)
+                  }
+                  style={styles.modalBtn(theme, false)}
+                >
+                  {t.cancel || 'لغو'}
+                </button>
+                <button
+                  onClick={handleConfirmAddToPlaylist}
+                  disabled={!targetPlaylistId}
+                  style={styles.modalBtn(
+                    theme,
+                    true,
+                    !targetPlaylistId
+                  )}
+                >
+                  {t.add || 'افزودن'}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
@@ -943,13 +947,15 @@ const styles = {
   modalOverlay: {
     position: 'fixed' as const,
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    backdropFilter: 'blur(10px)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
+    zIndex: 9999999,
     padding: 20,
+    boxSizing: 'border-box' as const,
   },
   modalBox: (theme: any) => ({
     backgroundColor: theme.colors.background,

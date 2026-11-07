@@ -25,3 +25,12 @@ export const isPlaylist = (value: unknown): value is Playlist =>
 
 export const isPlaylistList = (value: unknown): value is Playlist[] =>
   Array.isArray(value) && value.every(isPlaylist);
+
+export const isEqualizerSettings = (value: unknown): value is import('./index').EqualizerSettings =>
+  isRecord(value) &&
+  typeof value.enabled === 'boolean' &&
+  typeof value.preset === 'string' &&
+  Array.isArray(value.bands) &&
+  value.bands.length === 5 &&
+  value.bands.every((b) => typeof b === 'number') &&
+  typeof value.bassBoost === 'number';

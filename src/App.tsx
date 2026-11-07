@@ -10,8 +10,9 @@ import { Settings } from './features/Settings';
 import { usePersistentState } from './hooks/usePersistentState';
 import { usePlayer } from './hooks/usePlayer';
 import { STORAGE_KEYS } from './storage/keys';
-import { isPlaylistList, isSongList } from './types/guards';
-import type { Playlist, Song } from './types';
+import { isEqualizerSettings, isPlaylistList, isSongList } from './types/guards';
+import type { EqualizerSettings, Playlist, Song } from './types';
+import { DEFAULT_EQ_SETTINGS, audioEffects } from './player/audioEffects';
 import { translations, type Language } from './locales';
 import { getTheme, type PaletteType, type ThemeMode } from './theme';
 
@@ -30,7 +31,17 @@ function App() {
 
   const [songs, setSongs] = usePersistentState<Song[]>(STORAGE_KEYS.library, DEMO_SONGS, isSongList);
   const [playlists, setPlaylists] = usePersistentState<Playlist[]>(STORAGE_KEYS.playlists, [], isPlaylistList);
+  const [equalizerSettings, setEqualizerSettings] = usePersistentState<EqualizerSettings>(
+    STORAGE_KEYS.equalizer,
+    DEFAULT_EQ_SETTINGS,
+    isEqualizerSettings
+  );
   const player = usePlayer(songs);
+
+  // اعمال تغییرات اکولایزر بر روی خروجی صوتی
+  useEffect(() => {
+    audioEffects.applySettings(equalizerSettings);
+  }, [equalizerSettings]);
 
   // در صورت خالی بودن دیتابیس لوکال، ۴ آهنگ دمو به صورت خودکار بارگذاری شوند
   useEffect(() => {
@@ -158,6 +169,8 @@ function App() {
           setThemeMode={setThemeMode}
           colorPalette={colorPalette}
           setColorPalette={setColorPalette}
+          equalizerSettings={equalizerSettings}
+          setEqualizerSettings={setEqualizerSettings}
           theme={theme}
         />
       );

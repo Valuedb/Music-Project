@@ -4,6 +4,7 @@ import { PLAY_COUNT_THRESHOLD_SECONDS } from '../player/constants';
 import type { RepeatMode, Song } from '../types';
 import { FullScreenPlayer } from './FullScreenPlayer';
 import { syncMediaSession } from '../utils/mediaSession';
+import { audioEffects } from '../player/audioEffects';
 
 interface PlayerBarProps {
   currentSong: Song | null;
@@ -52,12 +53,20 @@ export const PlayerBar = ({
   const countedRef = useRef(false);
   const songUrl = currentSong?.fileUrl ?? null;
 
+  // اتصال اکولایزر به المان صوتی
+  useEffect(() => {
+    if (audioRef.current) {
+      audioEffects.attach(audioRef.current);
+    }
+  }, []);
+
   // بارگذاری و پخش آهنگ. وابسته به آدرس فایل و playToken است (نه کل آبجکت آهنگ):
   // ویرایش اطلاعات آهنگ، پخش را از اول شروع نمی‌کند، ولی انتخاب مجدد همان آهنگ ریستارتش می‌کند.
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     countedRef.current = false;
+    audioEffects.attach(audio);
 
     if (!songUrl) {
       audio.pause();
@@ -98,6 +107,7 @@ export const PlayerBar = ({
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio || !currentSong) return;
+    audioEffects.resumeContext();
     if (audio.paused) audio.play().catch(console.error);
     else audio.pause();
   };
@@ -423,7 +433,16 @@ export const PlayerBar = ({
           </button>
         </div>
       )}
-      <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={handleSongEnd} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+      <audio
+        ref={audioRef}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleSongEnd}
+        onPlay={() => {
+          audioEffects.resumeContext();
+          setIsPlaying(true);
+        }}
+        onPause={() => setIsPlaying(false)}
+      />
 
       <FullScreenPlayer
         isOpen={isNowPlayingOpen}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Playlist, Song } from '../types';
 import {
@@ -358,7 +359,7 @@ const PlaylistRow = ({
   );
 };
 
-/** پوسته‌ی مودال با انیمیشن ورود/خروج با استفاده از framer-motion */
+/** پوسته‌ی مودال با انیمیشن ورود/خروج با استفاده از framer-motion و createPortal */
 const Modal = ({
   open,
   onClose,
@@ -372,7 +373,9 @@ const Modal = ({
   theme: any;
   width?: number;
 }) => {
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -383,12 +386,15 @@ const Modal = ({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.45)',
+            backgroundColor: 'rgba(0,0,0,0.72)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 100,
+            zIndex: 9999999,
             padding: 20,
+            boxSizing: 'border-box',
           }}
         >
           <motion.div
@@ -403,14 +409,19 @@ const Modal = ({
               borderRadius: theme.radius.lg,
               width: '100%',
               maxWidth: width,
+              maxHeight: '88vh',
+              overflowY: 'auto',
               border: `1px solid ${theme.colors.border}`,
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)',
+              boxSizing: 'border-box',
             }}
           >
             {children}
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 

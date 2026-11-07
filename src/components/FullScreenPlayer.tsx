@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RepeatMode, Song } from '../types';
-import './FullScreenPlayer.css';
 
 interface FullScreenPlayerProps {
   isOpen: boolean;
@@ -85,7 +84,6 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
     <AnimatePresence>
       {isOpen && currentSong && (
         <motion.div
-          className={`full-screen-player ${isPlaying ? 'is-playing' : 'is-paused'}`}
           key="full-screen-player"
           initial={{ y: '100%', opacity: 0.8 }}
           animate={{ y: 0, opacity: 1 }}
@@ -129,7 +127,6 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
           {/* محتوای داخلی تمام‌صفحه */}
           <div
-            className="full-screen-player__content"
             style={{
               position: 'relative',
               zIndex: 2,
@@ -145,7 +142,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
             }}
           >
             {/* هدر: نشانگر سوایپ و دکمه بستن */}
-            <div className="full-screen-player__header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
               <button
                 onClick={onClose}
                 aria-label="Close"
@@ -226,7 +223,6 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
             {/* بخش میانی: کاور با ابعاد بهینه‌شده و اطلاعات آهنگ */}
             <div
-              className="full-screen-player__main"
               style={{
                 flex: 1,
                 display: 'flex',
@@ -305,38 +301,81 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="full-screen-player__artwork-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                  <img
-                    className="full-screen-player__artwork"
-                    src={currentSong.cover}
-                    alt={currentSong.name}
-                    style={{
-                      width: 'min(190px, 48vw, 24vh)',
-                      height: 'min(190px, 48vw, 24vh)',
-                      borderRadius: '18px',
-                      objectFit: 'cover',
-                      boxShadow: '0 16px 36px rgba(0,0,0,0.5)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                  <motion.div
+                    animate={{
+                      scale: isPlaying ? 1 : 0.88,
+                      y: isPlaying ? 0 : 6,
                     }}
-                  />
-                  <div className="full-screen-player__track-info" style={{ marginTop: '14px', textAlign: 'center', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
+                    transition={{
+                      type: 'spring',
+                      stiffness: 240,
+                      damping: 24,
+                      mass: 0.8,
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transformOrigin: 'center center',
+                    }}
+                  >
+                    <motion.img
+                      src={currentSong.cover}
+                      alt={currentSong.name}
+                      animate={{
+                        boxShadow: isPlaying
+                          ? '0 24px 50px rgba(0,0,0,0.65)'
+                          : '0 10px 24px rgba(0,0,0,0.35)',
+                      }}
+                      transition={{ duration: 0.35 }}
+                      style={{
+                        width: 'min(230px, 58vw, 29vh)',
+                        height: 'min(230px, 58vw, 29vh)',
+                        borderRadius: '22px',
+                        objectFit: 'cover',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                      }}
+                    />
+                  </motion.div>
+
+                  <motion.div
+                    animate={{
+                      scale: isPlaying ? 1 : 0.94,
+                      opacity: isPlaying ? 1 : 0.88,
+                    }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 240,
+                      damping: 24,
+                    }}
+                    style={{
+                      marginTop: '16px',
+                      textAlign: 'center',
+                      width: '100%',
+                      padding: '0 12px',
+                      boxSizing: 'border-box',
+                      transformOrigin: 'center top',
+                    }}
+                  >
                     <div
                       style={{
-                        fontSize: 'clamp(16px, 4.2vw, 20px)',
+                        fontSize: 'clamp(17px, 4.4vw, 21px)',
                         fontWeight: '700',
                         color: songTitleColor,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
+                        letterSpacing: '-0.2px',
                       }}
                     >
                       {currentSong.name}
                     </div>
                     <div
                       style={{
-                        fontSize: 'clamp(12px, 3.2vw, 14px)',
+                        fontSize: 'clamp(13px, 3.4vw, 15px)',
                         color: artistColor,
-                        marginTop: '3px',
+                        marginTop: '4px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -344,16 +383,15 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                     >
                       {currentSong.artist}
                     </div>
-                  </div>
+                  </motion.div>
                 </div>
               )}
             </div>
 
             {/* بخش کنترل‌ها و نوار پیشرفت */}
-            <div className="full-screen-player__controls" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* نوار پیشرفت دقیقا با استایل پلیربار کاربر */}
               <div
-                className="full-screen-player__progress"
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}
                 onMouseEnter={() => setIsHoveringProgress(true)}
                 onMouseLeave={() => setIsHoveringProgress(false)}
@@ -409,7 +447,6 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
               {/* دکمه‌های کنترل با همان آیکون‌ها و استایل اصلی (دکمه پلی بدون کادر دایره‌ای) */}
               <div
-                className="full-screen-player__control-buttons"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -515,7 +552,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
               </div>
 
               {/* اسلایدر ولوم صدا */}
-              <div className="full-screen-player__volume" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px', marginTop: '6px' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill={iconInactiveColor}>
                   <path d="M7 9v6h4l5 5V4L11 9H7z" />
                 </svg>

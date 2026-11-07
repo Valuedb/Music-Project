@@ -2,4 +2,5 @@
 export const STORAGE_KEYS = {
   library: 'musicLibrary',
   playlists: 'playlists',
+  equalizer: 'equalizerSettings',
 } as const;

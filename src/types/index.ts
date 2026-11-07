@@ -19,3 +19,22 @@ export interface Playlist {
 }
 
 export type RepeatMode = 'off' | 'all' | 'one';
+
+/** حالت‌های پیش‌فرض اکولایزر */
+export type EqualizerPreset =
+  | 'flat'
+  | 'bassBoost'
+  | 'pop'
+  | 'rock'
+  | 'jazz'
+  | 'vocal'
+  | 'electronic'
+  | 'custom';
+
+/** تنظیمات اکولایزر و افکت‌های صوتی */
+export interface EqualizerSettings {
+  enabled: boolean;
+  preset: EqualizerPreset;
+  bands: number[]; // ۵ باند فرکانسی برحسب دسی‌بل (-12 تا +12)
+  bassBoost: number; // تقویت بیس برحسب دسی‌بل (0 تا +12)
+}

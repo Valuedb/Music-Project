@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { Song } from '../types';
+import type { EqualizerSettings, Song } from '../types';
 import { parseBlob } from 'music-metadata';
 import { Upload, Globe, Music, Palette, Sun, Moon } from 'lucide-react';
 import type { PaletteType, ThemeMode } from '../theme';
+import { EqualizerControl } from '../components/EqualizerControl';
 
 interface SettingsProps {
   songs: Song[];
@@ -14,6 +15,8 @@ interface SettingsProps {
   setThemeMode: (mode: ThemeMode) => void;
   colorPalette: PaletteType;
   setColorPalette: (palette: PaletteType) => void;
+  equalizerSettings: EqualizerSettings;
+  setEqualizerSettings: (settings: EqualizerSettings) => void;
   theme: any;
 }
 
@@ -226,6 +229,8 @@ export const Settings = ({
   setThemeMode,
   colorPalette,
   setColorPalette,
+  equalizerSettings,
+  setEqualizerSettings,
   theme,
 }: SettingsProps) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -256,11 +261,13 @@ export const Settings = ({
     <div
       style={{
         flex: 1,
-        padding: '40px',
+        padding: 'clamp(16px, 3.5vw, 40px)',
+        paddingBottom: '140px',
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        boxSizing: 'border-box',
       }}
     >
       <h1
@@ -377,6 +384,14 @@ export const Settings = ({
             ))}
           </div>
         </div>
+
+        {/* بخش اکولایزر ۵ بانده و تقویت باس */}
+        <EqualizerControl
+          settings={equalizerSettings}
+          onChange={setEqualizerSettings}
+          theme={theme}
+          t={t}
+        />
 
         {/* ردیف بارگذاری فایل صوتی */}
         <SettingRow
