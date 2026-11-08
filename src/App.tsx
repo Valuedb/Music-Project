@@ -153,36 +153,42 @@ function App() {
     }
     const index = tabs.findIndex((name) => name === tab);
     if (index === -1) return;
-    if (index !== currentTabIndex) setDirection(Math.sign(index - currentTabIndex));
-    setCurrentTabIndex(index);
+    if (index !== currentTabIndex) {
+      setDirection(index > currentTabIndex ? 1 : -1);
+      setCurrentTabIndex(index);
+    }
     setIsSettingsOpen(false);
   };
 
+  // انیمیشن جابه‌جایی صفحات به سبک One UI / Samsung Music بدون جمع شدن صفحه
   const variants = {
-    enter: (direction: number) => ({
-      x: direction > 0 
-        ? (language === 'fa' ? '100%' : '-100%') 
-        : (language === 'fa' ? '-100%' : '100%'),
-      opacity: 0.5,
-      scale: 0.9,
-    }),
-    center: { zIndex: 1, x: 0, opacity: 1, scale: 1 },
-    exit: (direction: number) => ({
-      zIndex: 0,
-      x: direction < 0 
-        ? (language === 'fa' ? '100%' : '-100%') 
-        : (language === 'fa' ? '-100%' : '100%'),
-      opacity: 0.5,
-      scale: 0.9,
-    }),
+    enter: (dir: number) => {
+      if (dir === 0) return { x: 0 };
+      const isRtl = language === 'fa';
+      // در زبان فارسی (RTL)، حرکت به تب بعد (dir > 0) یعنی صفحه جدید از چپ وارد شود
+      // در زبان انگلیسی (LTR)، حرکت به تب بعد (dir > 0) یعنی صفحه جدید از راست وارد شود
+      const offset = dir > 0 ? (isRtl ? -100 : 100) : (isRtl ? 100 : -100);
+      return {
+        x: `${offset}%`,
+      };
+    },
+    center: { zIndex: 1, x: 0 },
+    exit: (dir: number) => {
+      if (dir === 0) return { x: 0 };
+      const isRtl = language === 'fa';
+      const offset = dir > 0 ? (isRtl ? 100 : -100) : (isRtl ? -100 : 100);
+      return {
+        zIndex: 0,
+        x: `${offset}%`,
+      };
+    },
   };
 
   const paginate = (newDirection: number) => {
     setDirection(newDirection);
     setCurrentTabIndex((prev) => {
-      let next = prev + newDirection;
-      if (next < 0) next = tabs.length - 1;
-      if (next >= tabs.length) next = 0;
+      const next = prev + newDirection;
+      if (next < 0 || next >= tabs.length) return prev;
       return next;
     });
   };
@@ -287,7 +293,7 @@ function App() {
       />
 
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+        <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={isSettingsOpen ? 'settings' : currentTab}
             custom={direction}
@@ -296,21 +302,21 @@ function App() {
             animate="center"
             exit="exit"
             transition={{
-              x: { type: 'spring', stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
+              x: { type: 'spring', stiffness: 350, damping: 35, mass: 0.75 },
             }}
             drag={isSettingsOpen ? false : 'x'}
             dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={1}
-            onDragEnd={(_, { offset }) => { // ✅ استفاده از _ به جای e
+            dragElastic={0.18}
+            onDragEnd={(_, { offset, velocity }) => {
               if (isSettingsOpen) return;
               const swipe = offset.x;
+              const vel = velocity.x;
               if (language === 'fa') {
-                if (swipe < -100) paginate(-1);
-                else if (swipe > 100) paginate(1);
+                if (swipe > 60 || vel > 350) paginate(1);
+                else if (swipe < -60 || vel < -350) paginate(-1);
               } else {
-                if (swipe < -100) paginate(1);
-                else if (swipe > 100) paginate(-1);
+                if (swipe < -60 || vel < -350) paginate(1);
+                else if (swipe > 60 || vel > 350) paginate(-1);
               }
             }}
             style={{

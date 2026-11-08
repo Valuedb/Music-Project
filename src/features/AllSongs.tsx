@@ -589,39 +589,6 @@ export const AllSongs = ({
                   {formatTime(song.duration || 0)}
                 </div>
 
-                {onToggleFavorite && !isSelectMode && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleFavorite(song.id);
-                    }}
-                    title={
-                      song.isFavorite
-                        ? t.removeFromFavorites || 'Remove from Favourites'
-                        : t.addToFavorites || 'Add to Favourites'
-                    }
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: song.isFavorite ? '#ff3b30' : theme.colors.textSecondary,
-                      opacity: song.isFavorite ? 1 : 0.65,
-                      borderRadius: '50%',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <Heart
-                      size={17}
-                      fill={song.isFavorite ? '#ff3b30' : 'none'}
-                      color={song.isFavorite ? '#ff3b30' : 'currentColor'}
-                    />
-                  </button>
-                )}
-
                 {!isSelectMode && (
                   <div
                     ref={(el) => {

@@ -98,39 +98,43 @@ const PlaylistMenuButton = ({
   theme: any;
   position: 'top' | 'inline';
   offset?: number;
-}) => (
-  <button
-    onClick={onClick}
-    aria-label="menu"
-    style={{
-      position: position === 'top' ? 'absolute' : 'relative',
-      ...(position === 'top' ? { top: offset ?? 10, insetInlineEnd: offset ?? 10 } : {}),
-      width: 32,
-      height: 32,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: isOpen ? theme.colors.surface : theme.colors.background,
-      border: `1px solid ${theme.colors.border}`,
-      color: theme.colors.textPrimary,
-      cursor: 'pointer',
-      borderRadius: '50%',
-      boxShadow: theme.shadows.soft,
-      transition: 'transform 0.2s, background-color 0.2s',
-      zIndex: 2,
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'scale(1.1)';
-      e.currentTarget.style.backgroundColor = theme.colors.surface;
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'scale(1)';
-      e.currentTarget.style.backgroundColor = isOpen ? theme.colors.surface : theme.colors.background;
-    }}
-  >
-    <MoreVertical size={16} />
-  </button>
-);
+}) => {
+  const hoverBg = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
+  const defaultBg = isOpen ? theme.colors.surface : 'transparent';
+  return (
+    <button
+      onClick={onClick}
+      aria-label="menu"
+      style={{
+        position: position === 'top' ? 'absolute' : 'relative',
+        ...(position === 'top' ? { top: offset ?? 10, insetInlineEnd: offset ?? 10 } : {}),
+        width: 32,
+        height: 32,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: defaultBg,
+        border: 'none',
+        color: theme.colors.textSecondary,
+        cursor: 'pointer',
+        borderRadius: '50%',
+        transition: 'background-color 0.15s ease, color 0.15s ease',
+        zIndex: 2,
+        outline: 'none',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = hoverBg;
+        e.currentTarget.style.color = theme.colors.textPrimary;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = defaultBg;
+        e.currentTarget.style.color = theme.colors.textSecondary;
+      }}
+    >
+      <MoreVertical size={16} />
+    </button>
+  );
+};
 
 /** یک آیتم داخل منوی کشویی */
 const MenuItem = ({
@@ -145,28 +149,36 @@ const MenuItem = ({
   onClick: () => void;
   color?: string;
   theme: any;
-}) => (
-  <button
-    onClick={onClick}
-    style={{
-      width: '100%',
-      padding: '12px 15px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      textAlign: 'start',
-      color: color ?? theme.colors.textPrimary,
-      transition: 'background 0.15s',
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.colors.surface)}
-    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-  >
-    {icon} <span style={{ fontSize: 14 }}>{label}</span>
-  </button>
-);
+}) => {
+  const hoverBg = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        textAlign: 'start',
+        color: color ?? theme.colors.textPrimary,
+        transition: 'background-color 0.15s ease',
+        outline: 'none',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = hoverBg;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'transparent';
+      }}
+    >
+      {icon} <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+    </button>
+  );
+};
 
 /** منوی کشویی عملیات پلی‌لیست (تغییر نام، افزودن، حذف) */
 const PlaylistMenu = ({
@@ -190,11 +202,11 @@ const PlaylistMenu = ({
       position: 'absolute',
       top: 'calc(100% + 6px)',
       [align === 'end' ? 'insetInlineEnd' : 'insetInlineStart']: 0,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface || theme.colors.background,
       borderRadius: theme.radius.md,
       border: `1px solid ${theme.colors.border}`,
-      boxShadow: theme.shadows.hard,
-      zIndex: 30,
+      boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+      zIndex: 1000,
       minWidth: 180,
       overflow: 'hidden',
     }}
@@ -238,20 +250,19 @@ const PlaylistCard = ({
   const [hovered, setHovered] = useState(false);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', zIndex: menuOpen ? 50 : (hovered ? 2 : 1) }}>
       <div
         onClick={onOpen}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          backgroundColor: theme.colors.surface,
+          backgroundColor: hovered ? (theme.colors.surfaceHover || theme.colors.surface) : theme.colors.surface,
           borderRadius: theme.radius.md,
           padding: 15,
           cursor: 'pointer',
           border: `1px solid ${theme.colors.border}`,
           boxShadow: hovered ? theme.shadows.hard : theme.shadows.soft,
-          transform: hovered ? 'scale(1.03)' : 'scale(1)',
-          transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+          transition: 'background-color 0.15s ease, box-shadow 0.15s ease',
         }}
       >
         <PlaylistCover songs={playlist.songs} theme={theme} />
@@ -273,7 +284,7 @@ const PlaylistCard = ({
         </p>
       </div>
 
-      <div ref={menuRef} style={{ position: 'absolute', top: 10, insetInlineEnd: 10, zIndex: 3 }}>
+      <div ref={menuRef} style={{ position: 'absolute', top: 10, insetInlineEnd: 10, zIndex: 50 }}>
         <PlaylistMenuButton isOpen={menuOpen} onClick={onToggleMenu} theme={theme} position="top" offset={0} />
         {menuOpen && (
           <PlaylistMenu onRename={onRename} onAddSong={onAddSong} onDelete={onDelete} theme={theme} t={t} align="end" />
@@ -319,13 +330,13 @@ const PlaylistRow = ({
         alignItems: 'center',
         gap: 15,
         padding: 12,
-        backgroundColor: hovered ? theme.colors.surface : 'transparent',
+        backgroundColor: hovered ? (theme.colors.surfaceHover || theme.colors.surface) : 'transparent',
         border: `1px solid ${theme.colors.border}`,
         borderRadius: theme.radius.md,
         cursor: 'pointer',
-        transition: 'background 0.2s, transform 0.2s',
-        transform: hovered ? 'scale(1.005)' : 'scale(1)',
+        transition: 'background-color 0.15s ease',
         position: 'relative',
+        zIndex: menuOpen ? 50 : (hovered ? 2 : 1),
       }}
     >
       <div style={{ width: 56, height: 56, flexShrink: 0 }}>
@@ -349,7 +360,7 @@ const PlaylistRow = ({
         </div>
       </div>
 
-      <div ref={menuRef} style={{ position: 'relative', zIndex: 3 }}>
+      <div ref={menuRef} style={{ position: 'relative', zIndex: 50 }}>
         <PlaylistMenuButton isOpen={menuOpen} onClick={onToggleMenu} theme={theme} position="inline" />
         {menuOpen && (
           <PlaylistMenu onRename={onRename} onAddSong={onAddSong} onDelete={onDelete} theme={theme} t={t} align="end" />
@@ -451,10 +462,16 @@ const ModalButton = ({
       cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.5 : 1,
       fontWeight: 600,
-      transition: 'transform 0.15s',
+      transition: 'filter 0.15s ease, opacity 0.15s ease',
     }}
-    onMouseEnter={(e) => !disabled && (e.currentTarget.style.transform = 'scale(1.05)')}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+    onMouseEnter={(e) => {
+      if (!disabled) {
+        e.currentTarget.style.filter = primary ? 'brightness(1.12)' : 'brightness(1.2)';
+      }
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.filter = 'none';
+    }}
   >
     {children}
   </button>
@@ -511,13 +528,25 @@ const AddSongModal = ({
         placeholder={t.search}
         style={{
           width: '100%',
-          padding: '10px 14px',
-          borderRadius: theme.radius.sm,
-          border: `1px solid ${theme.colors.border}`,
+          boxSizing: 'border-box',
+          padding: '12px 16px',
+          borderRadius: theme.radius.md || '10px',
+          border: `1.5px solid ${theme.colors.border}`,
           backgroundColor: theme.colors.surface,
           color: theme.colors.textPrimary,
-          marginBottom: 12,
+          marginBottom: 16,
           fontSize: 14,
+          outline: 'none',
+          display: 'block',
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = theme.colors.primary;
+          e.currentTarget.style.boxShadow = `0 0 0 3px ${theme.colors.primary}33`;
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = theme.colors.border;
+          e.currentTarget.style.boxShadow = 'none';
         }}
       />
       <div style={{ maxHeight: '50vh', overflowY: 'auto', marginBottom: 16 }}>
@@ -644,13 +673,25 @@ const NameModal = ({
       autoFocus
       style={{
         width: '100%',
-        padding: 12,
-        borderRadius: theme.radius.sm,
-        border: `1px solid ${theme.colors.border}`,
+        boxSizing: 'border-box',
+        padding: '12px 16px',
+        borderRadius: theme.radius.md || '10px',
+        border: `1.5px solid ${theme.colors.border}`,
         backgroundColor: theme.colors.surface,
         color: theme.colors.textPrimary,
-        marginBottom: 16,
+        marginBottom: 20,
         fontSize: 15,
+        outline: 'none',
+        display: 'block',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = theme.colors.primary;
+        e.currentTarget.style.boxShadow = `0 0 0 3px ${theme.colors.primary}33`;
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = theme.colors.border;
+        e.currentTarget.style.boxShadow = 'none';
       }}
     />
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -749,10 +790,15 @@ const SongRow = ({
           color: theme.colors.danger,
           cursor: 'pointer',
           padding: 6,
-          transition: 'transform 0.15s',
+          borderRadius: theme.radius.sm,
+          transition: 'background-color 0.15s ease, opacity 0.15s ease',
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
       >
         <X size={18} />
       </button>
@@ -771,24 +817,41 @@ const ViewToggle = ({
   onClick: () => void;
   icon: React.ReactNode;
   theme: any;
-}) => (
-  <button
-    onClick={onClick}
-    style={{
-      padding: '6px 10px',
-      borderRadius: theme.radius.sm,
-      border: 'none',
-      cursor: 'pointer',
-      backgroundColor: active ? theme.colors.surface : 'transparent',
-      color: active ? theme.colors.primary : theme.colors.textSecondary,
-      display: 'flex',
-      alignItems: 'center',
-      transition: 'all 0.15s',
-    }}
-  >
-    {icon}
-  </button>
-);
+}) => {
+  const hoverBg = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '7px 11px',
+        borderRadius: theme.radius.sm,
+        border: 'none',
+        cursor: 'pointer',
+        backgroundColor: active ? theme.colors.surface : 'transparent',
+        color: active ? theme.colors.primary : theme.colors.textSecondary,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'background-color 0.15s ease, color 0.15s ease',
+        outline: 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.backgroundColor = hoverBg;
+          e.currentTarget.style.color = theme.colors.textPrimary;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = theme.colors.textSecondary;
+        }
+      }}
+    >
+      {icon}
+    </button>
+  );
+};
 
 // ============================================================
 // کامپوننت اصلی
@@ -968,14 +1031,14 @@ export const Playlists = ({
               alignItems: 'center',
               gap: 8,
               fontWeight: 'bold',
-              transition: 'transform 0.15s',
+              transition: 'filter 0.15s ease, opacity 0.15s ease',
             }}
             onMouseEnter={(e) => {
               if (activePlaylist.songs.length > 0) {
-                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.filter = 'brightness(1.12)';
               }
             }}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            onMouseLeave={(e) => (e.currentTarget.style.filter = 'none')}
           >
             <Play size={18} fill="#fff" /> {t.playAll}
           </button>
@@ -996,10 +1059,16 @@ export const Playlists = ({
               alignItems: 'center',
               gap: 8,
               fontWeight: 'bold',
-              transition: 'transform 0.15s',
+              transition: 'background-color 0.15s ease, border-color 0.15s ease',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
+              e.currentTarget.style.borderColor = theme.colors.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = theme.colors.surface;
+              e.currentTarget.style.borderColor = theme.colors.border;
+            }}
           >
             <Plus size={18} /> {t.addSong}
           </button>
@@ -1045,7 +1114,7 @@ export const Playlists = ({
       style={{
         flex: 1,
         padding: 'clamp(16px, 3vw, 40px)',
-        paddingBottom: 130,
+        paddingBottom: 160,
         overflowY: 'auto',
         direction: isRTL ? 'rtl' : 'ltr',
       }}
@@ -1103,14 +1172,19 @@ export const Playlists = ({
               background: theme.colors.primary,
               color: '#fff',
               border: 'none',
-              padding: '10px 16px',
+              padding: '10px 18px',
               borderRadius: theme.radius.md,
               cursor: 'pointer',
               fontWeight: 'bold',
-              transition: 'transform 0.15s',
+              boxShadow: `0 2px 10px ${theme.colors.primary}44`,
+              transition: 'filter 0.15s ease, opacity 0.15s ease',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.filter = 'brightness(1.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.filter = 'none';
+            }}
           >
             <Plus size={18} /> {t.createPlaylist}
           </button>

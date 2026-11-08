@@ -165,6 +165,8 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   width: '100%',
+                  position: 'relative',
+                  minHeight: '40px',
                 }}
               >
                 <button
@@ -177,6 +179,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                     backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     color: '#ffffff',
                     transition: 'background-color 0.2s',
+                    zIndex: 2,
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)')}
@@ -186,26 +189,26 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   </svg>
                 </button>
 
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.5px' }}>
-                    {t.nowPlaying || 'در حال پخش'}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      maxWidth: '220px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {currentSong.album || currentSong.name}
-                  </div>
+                {/* عنوان دقیقاً در مرکز ریاضی هدر بدون اسم آهنگ و با فونت استاندارد */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: 'rgba(255, 255, 255, 0.75)',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: 'normal',
+                    pointerEvents: 'none',
+                    textAlign: 'center',
+                  }}
+                >
+                  {t.nowPlaying || 'در حال پخش'}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
                   {onToggleFavorite && (
                     <button
                       onClick={() => onToggleFavorite(currentSong.id)}
@@ -485,7 +488,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                 </span>
               </div>
 
-              {/* دکمه‌های کنترل با همان آیکون‌ها و استایل اصلی (دکمه پلی بدون کادر دایره‌ای) */}
+              {/* دکمه‌های کنترل با ابعاد ثابت برای جلوگیری قطعی از هرگونه پرش یا جابه‌جایی دکمه‌ها */}
               <div
                 style={{
                   display: 'flex',
@@ -493,6 +496,8 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   justifyContent: 'space-between',
                   padding: '0 8px',
                   marginTop: '2px',
+                  width: '100%',
+                  boxSizing: 'border-box',
                 }}
               >
                 <button
@@ -500,7 +505,12 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   style={{
                     ...btnStyle,
                     color: isShuffle ? iconActiveColor : iconInactiveColor,
-                    padding: '8px',
+                    width: '42px',
+                    height: '42px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                     transition: 'all 0.2s',
                   }}
                 >
@@ -518,7 +528,12 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   style={{
                     ...btnStyle,
                     color: iconColor,
-                    padding: '8px',
+                    width: '48px',
+                    height: '48px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                     transition: 'transform 0.2s',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
@@ -535,7 +550,12 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   style={{
                     ...btnStyle,
                     color: '#ffffff',
-                    padding: '8px',
+                    width: '56px',
+                    height: '56px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                     transition: 'transform 0.2s',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
@@ -546,7 +566,13 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                       <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5" />
                     </svg>
                   ) : (
-                    <svg width="34" height="34" viewBox="0 0 16 16" fill="currentColor" style={{ marginLeft: '3px' }}>
+                    <svg
+                      width="34"
+                      height="34"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      style={{ transform: 'translateX(2px)' }}
+                    >
                       <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z" />
                     </svg>
                   )}
@@ -557,7 +583,12 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   style={{
                     ...btnStyle,
                     color: iconColor,
-                    padding: '8px',
+                    width: '48px',
+                    height: '48px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                     transition: 'transform 0.2s',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
@@ -574,7 +605,12 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   style={{
                     ...btnStyle,
                     color: repeatMode !== 'off' ? iconActiveColor : iconInactiveColor,
-                    padding: '8px',
+                    width: '42px',
+                    height: '42px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                     transition: 'all 0.2s',
                   }}
                 >
