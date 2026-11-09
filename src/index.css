@@ -1,15 +1,15 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  --text: #374151;
+  --text-h: #0f172a;
+  --bg: #ffffff;
+  --border: #d1d5db;
+  --code-bg: #f1f5f9;
+  --accent: #5b4bff;
+  --accent-bg: rgba(91, 75, 255, 0.1);
+  --accent-border: rgba(91, 75, 255, 0.4);
+  --social-bg: rgba(241, 245, 249, 0.6);
   --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    rgba(0, 0, 0, 0.08) 0 4px 12px -2px, rgba(0, 0, 0, 0.04) 0 2px 6px -1px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -65,6 +65,24 @@ body {
   margin: 0;
 }
 
+/* انیمیشن لمسی نرم و طبیعی برای کلیک روی دکمه‌ها در موبایل و دسکتاپ */
+button,
+[role="button"],
+.interactive-tap {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.18s cubic-bezier(0.25, 1, 0.5, 1), filter 0.18s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+
+button:active:not(:disabled),
+[role="button"]:active:not([aria-disabled="true"]),
+.interactive-tap:active {
+  transform: scale(0.94);
+  filter: brightness(0.92);
+  transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), filter 0.06s ease;
+}
+
 h1,
 h2 {
   font-family: var(--heading);
@@ -108,3 +126,32 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* اکولایزر مینیاتوری روی کاور آهنگ در حال پخش */
+@keyframes miniEq1 {
+  0%, 100% { height: 4px; }
+  50% { height: 14px; }
+}
+
+@keyframes miniEq2 {
+  0%, 100% { height: 14px; }
+  50% { height: 5px; }
+}
+
+@keyframes miniEq3 {
+  0%, 100% { height: 7px; }
+  50% { height: 13px; }
+}
+
+.mini-eq-1 {
+  animation: miniEq1 0.75s ease-in-out infinite;
+}
+
+.mini-eq-2 {
+  animation: miniEq2 0.65s ease-in-out infinite 0.15s;
+}
+
+.mini-eq-3 {
+  animation: miniEq3 0.8s ease-in-out infinite 0.3s;
+}
+

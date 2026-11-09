@@ -26,8 +26,32 @@ function App() {
 
   const [language, setLanguage] = useState<Language>('fa');
   const [searchTerm, setSearchTerm] = useState("");
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [colorPalette, setColorPalette] = useState<PaletteType>('default');
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // تشخیص حالت تیره/روشن سیستم یا گوشی
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, []);
+
+  // فعال‌سازی واکنش لمسی فوری (Active state) در مرورگرهای موبایل مانند iOS Safari
+  useEffect(() => {
+    const handleTouchStart = () => {};
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    return () => window.removeEventListener('touchstart', handleTouchStart);
+  }, []);
 
   const [songs, setSongs] = usePersistentState<Song[]>(STORAGE_KEYS.library, DEMO_SONGS, isSongList);
   const [playlists, setPlaylists] = usePersistentState<Playlist[]>(STORAGE_KEYS.playlists, [], isPlaylistList);
@@ -51,7 +75,17 @@ function App() {
   }, [songs.length, setSongs]);
 
   const t = translations[language];
-  const theme = getTheme(themeMode, colorPalette);
+  const resolvedMode: 'light' | 'dark' = themeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : themeMode;
+  const theme = getTheme(resolvedMode, colorPalette);
+
+  // همگام‌سازی کلاس dark برای استایل‌ها
+  useEffect(() => {
+    if (resolvedMode === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [resolvedMode]);
 
   /** وقتی یک پخش «واقعی» حساب شد (نه فقط کلیک یا رد شدن)، شمارنده‌ی پخش زیاد می‌شه و تاریخ پخش ثبت می‌شه */
   const handleSongPlayed = (id: string) => {
@@ -89,6 +123,7 @@ function App() {
       )
     );
     player.playSongFromList(song, list);
+    setIsPlaying(true);
   };
 
   const handleCreatePlaylist = (name: string, selectedSongs: Song[]) => {
@@ -230,6 +265,7 @@ function App() {
             t={t}
             theme={theme}
             language={language}
+            isPlaying={isPlaying}
           />
         );
       case 'allSongs':
@@ -238,6 +274,7 @@ function App() {
             songs={songs}
             playlists={playlists}
             currentSong={player.currentSong}
+            isPlaying={isPlaying}
             onPlaySongFromList={handlePlaySongFromList}
             onCreatePlaylist={handleCreatePlaylist}
             addToQueue={player.addToQueue}
@@ -282,8 +319,73 @@ function App() {
         fontFamily: theme.fonts.main,
         overflow: 'hidden',
         direction: language === 'fa' ? 'rtl' : 'ltr',
+        position: 'relative',
       }}
     >
+      {/* هاله نور پس‌زمینه زنده و سیال به سبک اپل موزیک (Apple Music Ambient Glow) */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: '-10%',
+            left: '12%',
+            width: '45vw',
+            height: '45vw',
+            minWidth: '320px',
+            minHeight: '320px',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${theme.colors.primary}38 0%, ${theme.colors.glow || theme.colors.primary}18 50%, transparent 70%)`,
+            filter: 'blur(75px)',
+            opacity: theme.isDark ? 0.75 : 0.45,
+            transform: 'translate3d(0,0,0)',
+            transition: 'background 0.4s ease',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '12%',
+            right: '-8%',
+            width: '50vw',
+            height: '50vw',
+            minWidth: '360px',
+            minHeight: '360px',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${theme.colors.accent || theme.colors.primary}30 0%, ${theme.colors.secondary || theme.colors.primary}16 50%, transparent 70%)`,
+            filter: 'blur(90px)',
+            opacity: theme.isDark ? 0.65 : 0.38,
+            transform: 'translate3d(0,0,0)',
+            transition: 'background 0.4s ease',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            top: '45%',
+            left: '30%',
+            width: '38vw',
+            height: '38vw',
+            minWidth: '260px',
+            minHeight: '260px',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${theme.colors.secondary || theme.colors.primary}24 0%, transparent 70%)`,
+            filter: 'blur(80px)',
+            opacity: theme.isDark ? 0.55 : 0.32,
+            transform: 'translate3d(0,0,0)',
+            transition: 'background 0.4s ease',
+          }}
+        />
+      </div>
+
       <TopBar
         currentTab={isSettingsOpen ? 'settings' : currentTab}
         setCurrentTab={setTab}
@@ -292,7 +394,7 @@ function App() {
         theme={theme}
       />
 
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', zIndex: 1 }}>
         <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={isSettingsOpen ? 'settings' : currentTab}
@@ -326,7 +428,7 @@ function App() {
               right: 0,
               bottom: 0,
               overflowY: 'auto',
-              backgroundColor: theme.colors.background,
+              backgroundColor: 'transparent',
             }}
           >
             {renderContent()}
@@ -361,6 +463,7 @@ function App() {
           onToggleFavorite={toggleFavoriteSong}
           t={t}
           theme={theme}
+          onPlayStateChange={setIsPlaying}
         />
       </div>
     </div>

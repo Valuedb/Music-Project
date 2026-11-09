@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import {
   MoreVertical,
   ListPlus,
@@ -10,7 +11,6 @@ import {
   Edit2,
   FolderPlus,
   Check,
-  MoreHorizontal,
   Heart,
   ArrowLeft,
 } from 'lucide-react';
@@ -23,6 +23,7 @@ interface AllSongsProps {
   songs: Song[];
   playlists: Playlist[];
   currentSong: Song | null;
+  isPlaying?: boolean;
   onPlaySongFromList: (song: Song, list: Song[]) => void;
   onCreatePlaylist?: (name: string, selectedSongs: Song[]) => void;
   addToQueue: (song: Song) => void;
@@ -44,6 +45,7 @@ export const AllSongs = ({
   songs,
   playlists,
   currentSong,
+  isPlaying = false,
   onPlaySongFromList,
   onCreatePlaylist: _onCreatePlaylist,
   addToQueue,
@@ -371,7 +373,7 @@ export const AllSongs = ({
                 onClick={() => setIsTopMenuOpen(!isTopMenuOpen)}
                 style={styles.actionBtn(theme, isTopMenuOpen)}
               >
-                <MoreHorizontal size={18} />{' '}
+                <MoreVertical size={18} />{' '}
                 {t.more || 'More'}
               </button>
 
@@ -496,7 +498,8 @@ export const AllSongs = ({
             const isSelected = selectedSongs.includes(song.id);
             const isMenuHovered = hoveredMenuId === song.id;
             const isMenuOpen = activeMenuId === song.id;
-            const isPlaying = currentSong?.id === song.id;
+            const isCurrentSong = currentSong?.id === song.id;
+            const isTrackPlaying = isCurrentSong && isPlaying;
 
             return (
               <div
@@ -541,6 +544,8 @@ export const AllSongs = ({
                   style={{
                     position: 'relative',
                     flexShrink: 0,
+                    boxShadow: 'none',
+                    filter: 'none',
                   }}
                 >
                   <img
@@ -548,13 +553,105 @@ export const AllSongs = ({
                     alt=""
                     style={styles.coverImage}
                   />
-                  {isHovered && !isSelectMode && (
-                    <div style={styles.playOverlay}>
-                      <Play
-                        size={16}
-                        fill="#fff"
-                        color="#fff"
-                      />
+
+                  {isCurrentSong && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(0, 0, 0, 0.44)',
+                        backdropFilter: 'blur(3px)',
+                        WebkitBackdropFilter: 'blur(3px)',
+                        borderRadius: '8px',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          gap: '2.5px',
+                          height: '15px',
+                        }}
+                      >
+                        <motion.span
+                          animate={
+                            isTrackPlaying
+                              ? { scaleY: [0.25, 0.95, 0.35, 0.8, 0.25] }
+                              : { scaleY: 0.3 }
+                          }
+                          transition={
+                            isTrackPlaying
+                              ? {
+                                  duration: 0.75,
+                                  repeat: Infinity,
+                                  ease: 'easeInOut',
+                                }
+                              : { duration: 0.25 }
+                          }
+                          style={{
+                            width: '2.5px',
+                            height: '15px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '1.5px',
+                            transformOrigin: 'bottom',
+                            display: 'block',
+                          }}
+                        />
+                        <motion.span
+                          animate={
+                            isTrackPlaying
+                              ? { scaleY: [0.6, 0.25, 1, 0.45, 0.9, 0.6] }
+                              : { scaleY: 0.55 }
+                          }
+                          transition={
+                            isTrackPlaying
+                              ? {
+                                  duration: 0.65,
+                                  repeat: Infinity,
+                                  ease: 'easeInOut',
+                                  delay: 0.1,
+                                }
+                              : { duration: 0.25 }
+                          }
+                          style={{
+                            width: '2.5px',
+                            height: '15px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '1.5px',
+                            transformOrigin: 'bottom',
+                            display: 'block',
+                          }}
+                        />
+                        <motion.span
+                          animate={
+                            isTrackPlaying
+                              ? { scaleY: [0.35, 0.85, 0.2, 0.95, 0.4, 0.35] }
+                              : { scaleY: 0.35 }
+                          }
+                          transition={
+                            isTrackPlaying
+                              ? {
+                                  duration: 0.8,
+                                  repeat: Infinity,
+                                  ease: 'easeInOut',
+                                  delay: 0.2,
+                                }
+                              : { duration: 0.25 }
+                          }
+                          style={{
+                            width: '2.5px',
+                            height: '15px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '1.5px',
+                            transformOrigin: 'bottom',
+                            display: 'block',
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -568,7 +665,7 @@ export const AllSongs = ({
                         theme,
                         isSelected
                       ),
-                      color: isPlaying
+                      color: isCurrentSong
                         ? theme.colors.primary
                         : isSelected
                         ? theme.colors.primary
@@ -577,7 +674,7 @@ export const AllSongs = ({
                   >
                     {song.name}
                   </div>
-                  <div style={styles.songArtist}>
+                  <div style={styles.songArtist(theme)}>
                     {song.artist}{' '}
                     {song.album
                       ? `• ${song.album}`
@@ -585,7 +682,7 @@ export const AllSongs = ({
                   </div>
                 </div>
 
-                <div style={styles.duration}>
+                <div style={styles.duration(theme)}>
                   {formatTime(song.duration || 0)}
                 </div>
 
@@ -955,10 +1052,12 @@ const styles = {
     position: 'absolute' as const,
     top: 'calc(100% + 6px)',
     insetInlineEnd: 0,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.isDark ? 'rgba(20, 16, 38, 0.85)' : 'rgba(255, 255, 255, 0.88)',
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.border}`,
-    boxShadow: theme.shadows.hard,
+    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.35)',
     zIndex: 50,
     minWidth,
     overflow: 'hidden',
@@ -971,28 +1070,27 @@ const styles = {
   ) => ({
     display: 'flex',
     alignItems: 'center',
-    gap: 'clamp(10px, 2vw, 16px)',
-    padding:
-      'clamp(6px, 1vw, 10px) clamp(8px, 2vw, 12px)',
+    gap: '12px',
+    padding: '6px 12px',
     borderRadius: '12px',
     cursor: 'pointer',
     position: 'relative' as const,
-    transition: 'all 0.2s ease',
+    transition: 'background-color 0.16s ease, border-color 0.16s ease',
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     backgroundColor: isSelected
-      ? `${theme.colors.primary}20`
+      ? `${theme.colors.primary}22`
       : isHovered
-      ? 'rgba(255, 255, 255, 0.08)'
-      : theme.colors.surface,
+      ? (theme.isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.88)')
+      : (theme.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.58)'),
     border: `1px solid ${
       isSelected
         ? theme.colors.primary
         : isHovered
-        ? theme.colors.border
-        : 'transparent'
+        ? (theme.isDark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(0, 0, 0, 0.14)')
+        : (theme.isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)')
     }`,
-    boxShadow: isHovered
-      ? '0 8px 24px rgba(0,0,0,0.2)'
-      : '0 4px 12px rgba(0,0,0,0.1)',
+    boxShadow: 'none',
     zIndex: isMenuOpen ? 50 : 1,
   }),
   checkbox: (theme: any, isSelected: boolean) => ({
@@ -1013,11 +1111,12 @@ const styles = {
     cursor: 'pointer',
   }),
   coverImage: {
-    width: 'clamp(36px, 4vw, 44px)',
-    height: 'clamp(36px, 4vw, 44px)',
+    width: '42px',
+    height: '42px',
     borderRadius: '8px',
     objectFit: 'cover' as const,
-    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+    boxShadow: 'none',
+    filter: 'none',
   },
   playOverlay: {
     position: 'absolute' as const,
@@ -1038,26 +1137,26 @@ const styles = {
       ? theme.colors.primary
       : theme.colors.textPrimary,
   }),
-  songArtist: {
+  songArtist: (theme: any) => ({
     fontSize: 'clamp(11px, 1.2vw, 13px)',
-    color: '#888',
+    color: theme.colors.textSecondary,
     marginTop: '2px',
     whiteSpace: 'nowrap' as const,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-  },
-  duration: {
+  }),
+  duration: (theme: any) => ({
     fontSize: '12px',
-    color: '#888',
+    color: theme.colors.textSecondary,
     marginInlineEnd: '-2px',
     flexShrink: 0,
     fontVariantNumeric: 'tabular-nums',
     lineHeight: '1',
     transform: 'translateY(2px)',
-  },
+  }),
   moreBtn: (theme: any, isHovered: boolean) => ({
     background: isHovered
-      ? theme.colors.background
+      ? (theme.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0,0,0,0.06)')
       : 'none',
     border: isHovered
       ? `1px solid ${theme.colors.border}`
@@ -1075,7 +1174,9 @@ const styles = {
   songMenu: (theme: any) => ({
     position: 'absolute' as const,
     insetInlineEnd: 0,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.isDark ? 'rgba(20, 16, 38, 0.88)' : 'rgba(255, 255, 255, 0.9)',
+    backdropFilter: 'blur(26px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(26px) saturate(180%)',
     borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.border}`,
     boxShadow: theme.shadows.hard,
@@ -1097,13 +1198,15 @@ const styles = {
     boxSizing: 'border-box' as const,
   },
   modalBox: (theme: any) => ({
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.isDark ? 'rgba(24, 18, 44, 0.88)' : 'rgba(255, 255, 255, 0.92)',
+    backdropFilter: 'blur(28px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(28px) saturate(180%)',
     padding: 24,
-    borderRadius: theme.radius.lg,
+    borderRadius: theme.radius.xl || '22px',
     width: '100%',
     maxWidth: 400,
     border: `1px solid ${theme.colors.border}`,
-    boxShadow: theme.shadows.hard,
+    boxShadow: '0 24px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.15)',
   }),
   modalList: {
     display: 'flex',

@@ -1,96 +1,529 @@
-export type PaletteType = 'default' | 'ocean' | 'sunset' | 'forest' | 'lavender' | 'rose' | 'crimson' | 'midnight' | 'monochrome' | 'cyberpunk';
-export type ThemeMode = 'light' | 'dark';
+export type PaletteType =
+  | 'amethyst'
+  | 'sapphire'
+  | 'amber'
+  | 'sunset'
+  | 'emerald'
+  | 'teal'
+  | 'synthwave'
+  | 'glacier'
+  | 'mauve'
+  | 'mint'
+  | 'nordic'
+  | 'default';
+
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 const baseFonts = {
   main: "'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
 };
 
-const baseShadows = {
-  soft: '0 4px 15px rgba(0,0,0,0.03)',
-  hard: '0 10px 30px rgba(0,0,0,0.08)',
-  glow: '0 4px 12px rgba(0, 122, 255, 0.2)',
-};
-
 const baseRadius = {
-  sm: '8px', md: '12px', lg: '16px', xl: '24px', full: '9999px'
+  sm: '8px',
+  md: '12px',
+  lg: '18px',
+  xl: '24px',
+  full: '9999px',
 };
 
 const baseTransitions = {
-  fast: 'all 0.1s ease', normal: 'all 0.2s ease', slow: 'all 0.3s ease',
+  fast: 'all 0.12s cubic-bezier(0.2, 0, 0, 1)',
+  normal: 'all 0.22s cubic-bezier(0.2, 0, 0, 1)',
+  slow: 'all 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
 };
 
-// # تم‌های لایت (روشن)
+// تم‌های لایت (روشن) با سطوح شیشه‌ای و کنتراست تقویت‌شده برای خوانایی عالی
 const lightThemes: Record<PaletteType, any> = {
-  default: {
-    colors: { primary: '#007aff', background: '#f5f5f7', surface: '#ececec', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#1d1d1f', textSecondary: '#797979', textInverse: '#ffffff', border: '#e0e0e0', danger: '#ff3b30', success: '#34c759' },
+  amethyst: {
+    name: 'آمیتیست بنفش',
+    colors: {
+      primary: '#5B4BFF',
+      accent: '#7C3AED',
+      secondary: '#6D28D9',
+      background: '#F5F6FF',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#EDE9FE',
+      surfaceHover: 'rgba(91, 75, 255, 0.08)',
+      textPrimary: '#0D0B2D',
+      textSecondary: '#4A4568',
+      textInverse: '#ffffff',
+      border: 'rgba(91, 75, 255, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#8B5CF6',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  ocean: {
-    colors: { primary: '#0a84ff', background: '#eef6fc', surface: '#e0f0fa', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#001f3f', textSecondary: '#4a6b8a', textInverse: '#ffffff', border: '#b3d4f0', danger: '#ff3b30', success: '#34c759' },
+  sapphire: {
+    name: 'یاقوت کبود',
+    colors: {
+      primary: '#2563EB',
+      accent: '#1D4ED8',
+      secondary: '#1E40AF',
+      background: '#F0F6FF',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#DBEAFE',
+      surfaceHover: 'rgba(37, 99, 235, 0.08)',
+      textPrimary: '#0B1F3B',
+      textSecondary: '#3B4D66',
+      textInverse: '#ffffff',
+      border: 'rgba(37, 99, 235, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#3B82F6',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
+  },
+  amber: {
+    name: 'قهوه و موکا',
+    colors: {
+      primary: '#C6601F',
+      accent: '#9A4612',
+      secondary: '#78350F',
+      background: '#FAF4EE',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#EFE5D8',
+      surfaceHover: 'rgba(198, 96, 31, 0.08)',
+      textPrimary: '#1A120E',
+      textSecondary: '#544237',
+      textInverse: '#ffffff',
+      border: 'rgba(120, 53, 15, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#C6601F',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
   sunset: {
-    colors: { primary: '#ff6b35', background: '#fef5ed', surface: '#fce6d8', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#3a1c0f', textSecondary: '#8a5a44', textInverse: '#ffffff', border: '#f0c8a8', danger: '#ff3b30', success: '#34c759' },
+    name: 'غروب نارنجی',
+    colors: {
+      primary: '#EA580C',
+      accent: '#C2410C',
+      secondary: '#9A3412',
+      background: '#FAF3EC',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#FFEDD5',
+      surfaceHover: 'rgba(234, 88, 12, 0.08)',
+      textPrimary: '#1F1D2B',
+      textSecondary: '#4F433A',
+      textInverse: '#ffffff',
+      border: 'rgba(234, 88, 12, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#EA580C',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  forest: {
-    colors: { primary: '#2e8b57', background: '#f0faf0', surface: '#e0f5e0', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#1a3a1a', textSecondary: '#5a7a5a', textInverse: '#ffffff', border: '#b3d4b3', danger: '#ff3b30', success: '#34c759' },
+  emerald: {
+    name: 'زمرد و بیشه',
+    colors: {
+      primary: '#15803D',
+      accent: '#166534',
+      secondary: '#14532D',
+      background: '#F0F7F2',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#DCFCE7',
+      surfaceHover: 'rgba(21, 128, 61, 0.08)',
+      textPrimary: '#051F20',
+      textSecondary: '#2E4D3E',
+      textInverse: '#ffffff',
+      border: 'rgba(21, 128, 61, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#22C55E',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  lavender: {
-    colors: { primary: '#9b59b6', background: '#f8f4fa', surface: '#f0e6f5', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#2c1436', textSecondary: '#7a5a8a', textInverse: '#ffffff', border: '#d4b3e0', danger: '#ff3b30', success: '#34c759' },
+  teal: {
+    name: 'تالاب دریایی',
+    colors: {
+      primary: '#0F766E',
+      accent: '#115E59',
+      secondary: '#134E4A',
+      background: '#EEF7F6',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#CCFBF1',
+      surfaceHover: 'rgba(15, 118, 110, 0.08)',
+      textPrimary: '#0A0F14',
+      textSecondary: '#2B4C52',
+      textInverse: '#ffffff',
+      border: 'rgba(15, 118, 110, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#14B8A6',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  rose: {
-    colors: { primary: '#e84393', background: '#fdf5f8', surface: '#fce8f0', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#3a0f1f', textSecondary: '#8a4a6a', textInverse: '#ffffff', border: '#f0b3c8', danger: '#ff3b30', success: '#34c759' },
+  synthwave: {
+    name: 'نئون سایبر',
+    colors: {
+      primary: '#E11D48',
+      accent: '#BE123C',
+      secondary: '#9F1239',
+      background: '#FAF2F5',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#FFE4E6',
+      surfaceHover: 'rgba(225, 29, 72, 0.08)',
+      textPrimary: '#1A0F2E',
+      textSecondary: '#523650',
+      textInverse: '#ffffff',
+      border: 'rgba(225, 29, 72, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#FF6B6B',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  crimson: {
-    colors: { primary: '#dc143c', background: '#fcf5f5', surface: '#fce8e8', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#3a0a0f', textSecondary: '#8a4a50', textInverse: '#ffffff', border: '#f0b3b8', danger: '#ff3b30', success: '#34c759' },
+  glacier: {
+    name: 'یخچال قطبی',
+    colors: {
+      primary: '#11212D',
+      accent: '#4A5C6A',
+      secondary: '#253745',
+      background: '#CCD0CF',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#E2E6E5',
+      surfaceHover: 'rgba(17, 33, 45, 0.08)',
+      textPrimary: '#06141B',
+      textSecondary: '#253745',
+      textInverse: '#ffffff',
+      border: 'rgba(74, 92, 106, 0.25)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#4A5C6A',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  midnight: {
-    colors: { primary: '#2c3e50', background: '#f0f2f5', surface: '#e0e4e8', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#0a0f14', textSecondary: '#5a6a7a', textInverse: '#ffffff', border: '#b3c0cc', danger: '#ff3b30', success: '#34c759' },
+  nordic: {
+    name: 'نوردیک استیل',
+    colors: {
+      primary: '#191D23',
+      accent: '#57707A',
+      secondary: '#7B919C',
+      background: '#DEDCDC',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#C5BAC4',
+      surfaceHover: 'rgba(87, 112, 122, 0.1)',
+      textPrimary: '#191D23',
+      textSecondary: '#57707A',
+      textInverse: '#ffffff',
+      border: 'rgba(87, 112, 122, 0.25)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#57707A',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  monochrome: {
-    colors: { primary: '#333333', background: '#f5f5f5', surface: '#eeeeee', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#000000', textSecondary: '#666666', textInverse: '#ffffff', border: '#dddddd', danger: '#ff3b30', success: '#34c759' },
+  mauve: {
+    name: 'مخملی بنفش',
+    colors: {
+      primary: '#86198F',
+      accent: '#701A75',
+      secondary: '#4A044E',
+      background: '#FAF2F6',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#FCE7F3',
+      surfaceHover: 'rgba(134, 25, 143, 0.08)',
+      textPrimary: '#190019',
+      textSecondary: '#50324E',
+      textInverse: '#ffffff',
+      border: 'rgba(134, 25, 143, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#C084FC',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
   },
-  cyberpunk: {
-    colors: { primary: '#f1c40f', background: '#fdfbed', surface: '#fcf5cc', surfaceHover: 'rgba(0,0,0,0.05)', textPrimary: '#1a1a00', textSecondary: '#7a7a00', textInverse: '#000000', border: '#e0d68a', danger: '#ff3b30', success: '#34c759' },
-  }
+  mint: {
+    name: 'فیروزه و نعنا',
+    colors: {
+      primary: '#0D9488',
+      accent: '#0F766E',
+      secondary: '#115E59',
+      background: '#EEF9F7',
+      surface: 'rgba(255, 255, 255, 0.72)',
+      surfaceSolid: '#CCFBF1',
+      surfaceHover: 'rgba(13, 148, 136, 0.08)',
+      textPrimary: '#0B3D3B',
+      textSecondary: '#284D4A',
+      textInverse: '#ffffff',
+      border: 'rgba(13, 148, 136, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.9)',
+      glow: '#14B8A6',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
+  },
+  default: null as any,
 };
+lightThemes.default = lightThemes.amethyst;
 
-// # تم‌های دارک (تیره)
+// تم‌های دارک (تیره) با سطوح شیشه‌ای بلور، درخشش‌های عمیق و رنگ‌های استخراج‌شده
 const darkThemes: Record<PaletteType, any> = {
-  default: {
-    colors: { primary: '#0a84ff', background: '#121212', surface: '#1c1c1e', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#ffffff', textSecondary: '#a1a1a6', textInverse: '#000000', border: '#333333', danger: '#ff453a', success: '#30d158' },
+  amethyst: {
+    name: 'آمیتیست بنفش',
+    colors: {
+      primary: '#8B7CC7',
+      accent: '#A78BFA',
+      secondary: '#5A3B8C',
+      background: '#0E0B1D',
+      surface: 'rgba(42, 30, 77, 0.42)',
+      surfaceSolid: '#1D1537',
+      surfaceHover: 'rgba(139, 124, 199, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#A9A4C2',
+      textInverse: '#000000',
+      border: 'rgba(139, 124, 199, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#8B7CC7',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  ocean: {
-    colors: { primary: '#64d2ff', background: '#0a192f', surface: '#112240', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#e6f1ff', textSecondary: '#8892b0', textInverse: '#000000', border: '#233554', danger: '#ff453a', success: '#30d158' },
+  sapphire: {
+    name: 'یاقوت کبود',
+    colors: {
+      primary: '#3B82F6',
+      accent: '#60A5FA',
+      secondary: '#1C2541',
+      background: '#0B132B',
+      surface: 'rgba(28, 37, 65, 0.46)',
+      surfaceSolid: '#141D35',
+      surfaceHover: 'rgba(96, 165, 250, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#94A3B8',
+      textInverse: '#000000',
+      border: 'rgba(96, 165, 250, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#3B82F6',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
+  },
+  amber: {
+    name: 'قهوه و موکا',
+    colors: {
+      primary: '#D5C4AE',
+      accent: '#C6601F',
+      secondary: '#6B4A2E',
+      background: '#1A120E',
+      surface: 'rgba(58, 36, 24, 0.44)',
+      surfaceSolid: '#2A1A12',
+      surfaceHover: 'rgba(213, 196, 174, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#BDB1A6',
+      textInverse: '#000000',
+      border: 'rgba(168, 132, 98, 0.24)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#C6601F',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
   sunset: {
-    colors: { primary: '#ff9f0a', background: '#1c1014', surface: '#2c1a20', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#ffeee6', textSecondary: '#b88a7a', textInverse: '#000000', border: '#4a2a30', danger: '#ff453a', success: '#30d158' },
+    name: 'غروب نارنجی',
+    colors: {
+      primary: '#FF7A00',
+      accent: '#FFA94D',
+      secondary: '#2E2A3D',
+      background: '#1F1D2B',
+      surface: 'rgba(46, 42, 61, 0.48)',
+      surfaceSolid: '#262235',
+      surfaceHover: 'rgba(255, 122, 0, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#B6B0C6',
+      textInverse: '#000000',
+      border: 'rgba(255, 122, 0, 0.24)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#FF7A00',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  forest: {
-    colors: { primary: '#30d158', background: '#0d1a0d', surface: '#1a2e1a', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#e0f5e0', textSecondary: '#7a9a7a', textInverse: '#000000', border: '#2e4a2e', danger: '#ff453a', success: '#30d158' },
+  emerald: {
+    name: 'زمرد و بیشه',
+    colors: {
+      primary: '#48BB78',
+      accent: '#8EB69B',
+      secondary: '#163832',
+      background: '#051F20',
+      surface: 'rgba(22, 56, 50, 0.46)',
+      surfaceSolid: '#0B2B26',
+      surfaceHover: 'rgba(142, 182, 155, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#A0B9AC',
+      textInverse: '#000000',
+      border: 'rgba(142, 182, 155, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#48BB78',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  lavender: {
-    colors: { primary: '#c39bd3', background: '#1a0f1f', surface: '#2a1a30', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#f5e6fa', textSecondary: '#a08ab0', textInverse: '#000000', border: '#4a2a50', danger: '#ff453a', success: '#30d158' },
+  teal: {
+    name: 'تالاب دریایی',
+    colors: {
+      primary: '#14B8A6',
+      accent: '#7FB3B8',
+      secondary: '#0F3D3E',
+      background: '#0A0F14',
+      surface: 'rgba(15, 61, 62, 0.46)',
+      surfaceSolid: '#0D2D2E',
+      surfaceHover: 'rgba(20, 184, 166, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#9BB8BC',
+      textInverse: '#000000',
+      border: 'rgba(127, 179, 184, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#14B8A6',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  rose: {
-    colors: { primary: '#fd79a8', background: '#1f0f14', surface: '#301a20', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#fae6ed', textSecondary: '#b08a9a', textInverse: '#000000', border: '#502a30', danger: '#ff453a', success: '#30d158' },
+  synthwave: {
+    name: 'نئون سایبر',
+    colors: {
+      primary: '#FF6B6B',
+      accent: '#D6598F',
+      secondary: '#7A2E6F',
+      background: '#1A0F2E',
+      surface: 'rgba(59, 27, 79, 0.46)',
+      surfaceSolid: '#2A133B',
+      surfaceHover: 'rgba(255, 107, 107, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#D0A8C4',
+      textInverse: '#000000',
+      border: 'rgba(255, 107, 107, 0.24)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#FF6B6B',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  crimson: {
-    colors: { primary: '#e74c3c', background: '#1a0a0a', surface: '#2a1010', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#fae6e6', textSecondary: '#b08a8a', textInverse: '#000000', border: '#4a2020', danger: '#ff453a', success: '#30d158' },
+  glacier: {
+    name: 'یخچال قطبی',
+    colors: {
+      primary: '#CCD0CF',
+      accent: '#4A5C6A',
+      secondary: '#253745',
+      background: '#06141B',
+      surface: 'rgba(17, 33, 45, 0.52)',
+      surfaceSolid: '#11212D',
+      surfaceHover: 'rgba(74, 92, 106, 0.16)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#9BA8AB',
+      textInverse: '#000000',
+      border: 'rgba(74, 92, 106, 0.28)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#4A5C6A',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  midnight: {
-    colors: { primary: '#5d8aa8', background: '#0a1015', surface: '#15202a', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#e6f0f5', textSecondary: '#8aa0b0', textInverse: '#000000', border: '#2a3a4a', danger: '#ff453a', success: '#30d158' },
+  nordic: {
+    name: 'نوردیک استیل',
+    colors: {
+      primary: '#C5BAC4',
+      accent: '#57707A',
+      secondary: '#7B919C',
+      background: '#191D23',
+      surface: 'rgba(38, 44, 53, 0.55)',
+      surfaceSolid: '#262C35',
+      surfaceHover: 'rgba(197, 186, 196, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#989DAA',
+      textInverse: '#000000',
+      border: 'rgba(123, 145, 156, 0.24)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#7B919C',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  monochrome: {
-    colors: { primary: '#aaaaaa', background: '#111111', surface: '#222222', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#ffffff', textSecondary: '#888888', textInverse: '#000000', border: '#444444', danger: '#ff453a', success: '#30d158' },
+  mauve: {
+    name: 'مخملی بنفش',
+    colors: {
+      primary: '#DFB6B2',
+      accent: '#D946EF',
+      secondary: '#522B5B',
+      background: '#190019',
+      surface: 'rgba(43, 18, 76, 0.46)',
+      surfaceSolid: '#270F35',
+      surfaceHover: 'rgba(223, 182, 178, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#C5A6BC',
+      textInverse: '#000000',
+      border: 'rgba(223, 182, 178, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#D946EF',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
   },
-  cyberpunk: {
-    colors: { primary: '#f1c40f', background: '#111100', surface: '#222200', surfaceHover: 'rgba(255,255,255,0.08)', textPrimary: '#ffffcc', textSecondary: '#aaaa66', textInverse: '#000000', border: '#444400', danger: '#ff453a', success: '#30d158' },
-  }
+  mint: {
+    name: 'فیروزه و نعنا',
+    colors: {
+      primary: '#2DD4BF',
+      accent: '#99F6E4',
+      secondary: '#0F3D3B',
+      background: '#0B3D3B',
+      surface: 'rgba(11, 61, 59, 0.48)',
+      surfaceSolid: '#0E4846',
+      surfaceHover: 'rgba(45, 212, 191, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#9FE0D8',
+      textInverse: '#000000',
+      border: 'rgba(45, 212, 191, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#2DD4BF',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
+  },
+  default: null as any,
 };
+darkThemes.default = darkThemes.amethyst;
 
-export const getTheme = (mode: ThemeMode, palette: PaletteType) => {
-  const theme = mode === 'light' ? lightThemes[palette] : darkThemes[palette];
+export const getTheme = (mode: ThemeMode | 'light' | 'dark', palette: PaletteType) => {
+  const effectiveMode = mode === 'dark' ? 'dark' : 'light';
+  const paletteKey = (palette in lightThemes ? palette : 'amethyst') as PaletteType;
+  const theme = effectiveMode === 'light' ? lightThemes[paletteKey] : darkThemes[paletteKey];
+
+  const isDark = effectiveMode === 'dark';
+  const baseShadows = {
+    soft: isDark ? '0 8px 24px rgba(0, 0, 0, 0.35)' : '0 4px 18px rgba(0, 0, 0, 0.05)',
+    hard: isDark ? '0 16px 40px rgba(0, 0, 0, 0.55)' : '0 10px 30px rgba(0, 0, 0, 0.1)',
+    glow: `0 8px 30px ${theme.colors.glow}44`,
+  };
+
+  const glass = {
+    blur: '24px',
+    background: theme.colors.surface,
+    border: `1px solid ${theme.colors.border}`,
+    card: {
+      backgroundColor: theme.colors.surface,
+      backdropFilter: 'blur(26px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+      border: `1px solid ${theme.colors.border}`,
+      boxShadow: isDark
+        ? '0 12px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+        : '0 8px 24px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+    },
+    row: {
+      backgroundColor: theme.colors.surface,
+      backdropFilter: 'blur(20px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+      border: `1px solid ${theme.colors.border}`,
+      boxShadow: isDark
+        ? '0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+        : '0 2px 10px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+    },
+  };
+
   return {
     ...theme,
+    isDark,
+    glass,
     fonts: baseFonts,
     shadows: baseShadows,
     radius: baseRadius,

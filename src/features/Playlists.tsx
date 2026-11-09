@@ -202,10 +202,12 @@ const PlaylistMenu = ({
       position: 'absolute',
       top: 'calc(100% + 6px)',
       [align === 'end' ? 'insetInlineEnd' : 'insetInlineStart']: 0,
-      backgroundColor: theme.colors.surface || theme.colors.background,
+      backgroundColor: theme.isDark ? 'rgba(22, 18, 42, 0.88)' : 'rgba(255, 255, 255, 0.9)',
+      backdropFilter: 'blur(26px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(26px) saturate(180%)',
       borderRadius: theme.radius.md,
       border: `1px solid ${theme.colors.border}`,
-      boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+      boxShadow: '0 16px 36px rgba(0, 0, 0, 0.38)',
       zIndex: 1000,
       minWidth: 180,
       overflow: 'hidden',
@@ -223,7 +225,7 @@ const PlaylistMenu = ({
   </div>
 );
 
-/** کارت پلی‌لیست در حالت grid */
+/** کارت پلی‌لیست در حالت grid با شیشه بلوری اپل موزیک */
 const PlaylistCard = ({
   playlist,
   onOpen,
@@ -256,22 +258,31 @@ const PlaylistCard = ({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          backgroundColor: hovered ? (theme.colors.surfaceHover || theme.colors.surface) : theme.colors.surface,
-          borderRadius: theme.radius.md,
-          padding: 15,
+          backgroundColor: hovered
+            ? (theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.88)')
+            : theme.colors.surface,
+          backdropFilter: 'blur(26px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+          borderRadius: theme.radius.xl || '22px',
+          padding: 16,
           cursor: 'pointer',
-          border: `1px solid ${theme.colors.border}`,
-          boxShadow: hovered ? theme.shadows.hard : theme.shadows.soft,
-          transition: 'background-color 0.15s ease, box-shadow 0.15s ease',
+          border: `1px solid ${hovered ? (theme.colors.borderLight || theme.colors.primary + '88') : theme.colors.border}`,
+          boxShadow: hovered
+            ? `0 16px 36px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 20px ${theme.colors.glow || theme.colors.primary}33`
+            : (theme.isDark
+                ? '0 8px 24px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06)'
+                : '0 4px 14px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.7)'),
+          transition: 'all 0.22s cubic-bezier(0.2, 0, 0, 1)',
+          transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         }}
       >
         <PlaylistCover songs={playlist.songs} theme={theme} />
         <h3
           style={{
-            fontWeight: 'bold',
+            fontWeight: '700',
             fontSize: 16,
             color: theme.colors.textPrimary,
-            marginTop: 10,
+            marginTop: 12,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -279,12 +290,12 @@ const PlaylistCard = ({
         >
           {playlist.name}
         </h3>
-        <p style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+        <p style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 3 }}>
           {playlist.songs.length} {t.allSongs}
         </p>
       </div>
 
-      <div ref={menuRef} style={{ position: 'absolute', top: 10, insetInlineEnd: 10, zIndex: 50 }}>
+      <div ref={menuRef} style={{ position: 'absolute', top: 12, insetInlineEnd: 12, zIndex: 50 }}>
         <PlaylistMenuButton isOpen={menuOpen} onClick={onToggleMenu} theme={theme} position="top" offset={0} />
         {menuOpen && (
           <PlaylistMenu onRename={onRename} onAddSong={onAddSong} onDelete={onDelete} theme={theme} t={t} align="end" />
@@ -294,7 +305,7 @@ const PlaylistCard = ({
   );
 };
 
-/** ردیف پلی‌لیست در حالت list */
+/** ردیف پلی‌لیست در حالت list با شیشه بلوری */
 const PlaylistRow = ({
   playlist,
   onOpen,
@@ -329,12 +340,20 @@ const PlaylistRow = ({
         display: 'flex',
         alignItems: 'center',
         gap: 15,
-        padding: 12,
-        backgroundColor: hovered ? (theme.colors.surfaceHover || theme.colors.surface) : 'transparent',
-        border: `1px solid ${theme.colors.border}`,
-        borderRadius: theme.radius.md,
+        padding: '12px 16px',
+        backgroundColor: hovered
+          ? (theme.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.88)')
+          : theme.colors.surface,
+        backdropFilter: 'blur(22px) saturate(170%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(170%)',
+        border: `1px solid ${hovered ? (theme.colors.borderLight || theme.colors.primary + '88') : theme.colors.border}`,
+        borderRadius: '16px',
         cursor: 'pointer',
-        transition: 'background-color 0.15s ease',
+        boxShadow: hovered
+          ? '0 10px 28px rgba(0,0,0,0.28)'
+          : (theme.isDark ? '0 4px 14px rgba(0,0,0,0.18)' : '0 2px 8px rgba(0,0,0,0.04)'),
+        transition: 'all 0.22s cubic-bezier(0.2, 0, 0, 1)',
+        transform: hovered ? 'scale(1.006)' : 'scale(1)',
         position: 'relative',
         zIndex: menuOpen ? 50 : (hovered ? 2 : 1),
       }}

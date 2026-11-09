@@ -30,6 +30,6 @@ export const responsiveStyles: Record<string, CSSProperties> = {
     height: 'clamp(40px, 5vw, 52px)',
     borderRadius: '8px',
     objectFit: 'cover',
-    boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+    boxShadow: 'none',
   },
 };

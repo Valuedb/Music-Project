@@ -78,7 +78,10 @@ export const translations = {
     theme: "تم برنامه",
     light: "روشن",
     dark: "تیره",
+    system: "پیش‌فرض سیستم / گوشی",
     colorPalette: "پالت رنگی",
+    persian: "فارسی",
+    english: "English",
 
     // # پخش‌کننده (PlayerBar)
     queue: "در صف پخش",
@@ -203,7 +206,10 @@ export const translations = {
     theme: "App Theme",
     light: "Light",
     dark: "Dark",
+    system: "System Default",
     colorPalette: "Color Palette",
+    persian: "Persian (فارسی)",
+    english: "English",
 
     // # پخش‌کننده (PlayerBar)
     queue: "Up Next",

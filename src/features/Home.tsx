@@ -28,6 +28,7 @@ interface HomeProps {
   t: any;
   theme: any;
   language: 'fa' | 'en';
+  isPlaying?: boolean;
 }
 
 type ActiveCollection =
@@ -80,21 +81,27 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.radius.lg,
+        backgroundColor: hovered
+          ? (theme.isDark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(255, 255, 255, 0.85)')
+          : theme.colors.surface,
+        backdropFilter: 'blur(26px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+        borderRadius: theme.radius.xl || '22px',
         border: `1px solid ${
-          hovered ? theme.colors.primary + '55' : theme.colors.border
+          hovered ? theme.colors.primary + '88' : theme.colors.border
         }`,
-        padding: '16px 18px',
+        padding: '18px 20px',
         display: 'flex',
         flexDirection: 'column',
         gap: '14px',
         cursor: 'pointer',
-        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'all 0.25s cubic-bezier(0.2, 0, 0, 1)',
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         boxShadow: hovered
-          ? '0 12px 28px rgba(0, 0, 0, 0.25)'
-          : '0 4px 12px rgba(0, 0, 0, 0.1)',
+          ? `0 16px 36px rgba(0, 0, 0, 0.32), inset 0 1px 0 ${theme.isDark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.9)'}, 0 0 20px ${theme.colors.glow || theme.colors.primary}33`
+          : (theme.isDark
+              ? '0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+              : '0 6px 18px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.7)'),
         position: 'relative',
         boxSizing: 'border-box',
         minHeight: '145px',
@@ -325,6 +332,7 @@ export const Home: React.FC<HomeProps> = ({
   t,
   theme,
   language,
+  isPlaying,
 }) => {
   const [activeList, setActiveList] = useState<ActiveCollection>(null);
 
@@ -392,6 +400,7 @@ export const Home: React.FC<HomeProps> = ({
         title={activeConfig.title}
         onBack={() => setActiveList(null)}
         emptyMessage={activeConfig.empty}
+        isPlaying={isPlaying}
       />
     );
   }

@@ -102,7 +102,10 @@ export const TopBar = ({ currentTab, setCurrentTab, t, onSearch, theme }: TopBar
         zIndex: 50,
         paddingTop: '18px',
         paddingBottom: '8px',
-        backgroundColor: theme.colors.background,
+        backgroundColor: theme.isDark ? 'rgba(12, 10, 24, 0.72)' : 'rgba(255, 255, 255, 0.72)',
+        backdropFilter: 'blur(28px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        borderBottom: `1px solid ${theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'}`,
         boxSizing: 'border-box',
         overflow: 'hidden',
       }}
