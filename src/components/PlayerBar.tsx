@@ -219,26 +219,26 @@ export const PlayerBar = ({
   return (
     <div style={{ 
       boxSizing: 'border-box',
-      height: isMobile ? '64px' : '80px', 
+      height: isMobile ? '66px' : '90px', 
       width: isMobile ? '320px' : '90%',
       maxWidth: isMobile ? 'calc(100% - 24px)' : '1000px',
-      // # پس‌زمینه شیشه‌ای شفاف با درصد بلور ملایم و پایین (طبق درخواست کاربر)
-      backgroundColor: theme.isDark ? 'rgba(18, 14, 34, 0.55)' : 'rgba(255, 255, 255, 0.55)', 
-      backdropFilter: 'blur(12px) saturate(150%)', 
-      WebkitBackdropFilter: 'blur(12px) saturate(150%)',
-      borderRadius: isMobile ? '18px' : '22px',
-      margin: isMobile ? '0 auto 12px auto' : '0 auto 20px auto',
+      // # پس‌زمینه شیشه‌ای شبیه اپل موزیک بر پایه رنگ #bababa
+      backgroundColor: theme.isDark ? 'rgba(121, 121, 121, 1)' : 'rgba(186, 186, 186, 0.85)', 
+      backdropFilter: 'blur(30px) saturate(180%)', 
+      WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+      borderRadius: isMobile ? '18px' : '24px',
+      margin: isMobile ? '0 auto 12px auto' : '0 auto 16px auto',
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'space-between', 
-      padding: isMobile ? '0 12px' : '0 24px', 
+      padding: isMobile ? '0 12px' : '10px 24px 8px 24px', 
       position: 'relative', 
       color: songTitleColor, 
       zIndex: 20,
       boxShadow: theme.isDark
-        ? `0 12px 32px rgba(0,0,0,0.35), 0 0 20px ${theme.colors.glow || theme.colors.primary}20, inset 0 1px 0 rgba(255, 255, 255, 0.16)`
-        : '0 8px 28px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85)', 
-      border: `1px solid ${theme.isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.65)'}`,
+        ? '0 16px 40px rgba(0, 0, 0, 0.5)'
+        : '0 12px 32px rgba(0, 0, 0, 0.14)', 
+      border: 'none',
       gap: isMobile ? '10px' : '0'
     }}>
       
@@ -365,14 +365,26 @@ export const PlayerBar = ({
         display: 'flex', 
         flexDirection: isMobile ? 'row' : 'column', 
         alignItems: 'center', 
+        justifyContent: 'center',
         flex: isMobile ? 'none' : 1, 
         maxWidth: isMobile ? 'none' : '600px', 
-        marginTop: isMobile ? '0' : '5px' 
+        paddingTop: isMobile ? '0' : '4px',
       }}>
         
         {/* نوار پیشرفت فقط در دسکتاپ نمایش داده می‌شود */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', marginBottom: '8px' }} onMouseEnter={() => setIsHoveringProgress(true)} onMouseLeave={() => setIsHoveringProgress(false)}>
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              width: '100%', 
+              marginTop: '4px',
+              marginBottom: '10px' 
+            }} 
+            onMouseEnter={() => setIsHoveringProgress(true)} 
+            onMouseLeave={() => setIsHoveringProgress(false)}
+          >
             <span style={{ fontSize: '10px', color: artistColor, width: '30px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatTime(currentTime)}</span>
             <div style={{ flex: 1, position: 'relative', height: '16px', display: 'flex', alignItems: 'center' }}>
               <div style={{ 
@@ -396,48 +408,145 @@ export const PlayerBar = ({
         )}
 
         {/* دکمه‌های کنترل */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '16px' : '22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '16px' : '26px' }}>
           {!isMobile && (
-            <button onClick={() => setIsShuffle(!isShuffle)} style={{ ...btnStyle, color: isShuffle ? iconActiveColor : iconInactiveColor, transition: 'all 0.2s' }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path fillRule="evenodd" d="M0 3.5A.5.5 0 0 1 .5 3H1c2.202 0 3.827 1.24 4.874 2.418.49.552.865 1.102 1.126 1.532.26-.43.636-.98 1.126-1.532C9.173 4.24 10.798 3 13 3v1c-1.798 0-3.173 1.01-4.126 2.082A9.6 9.6 0 0 0 7.556 8a9.6 9.6 0 0 0 1.317 1.918C9.828 10.99 11.204 12 13 12v1c-2.202 0-3.827-1.24-4.874-2.418A10.6 10.6 0 0 1 7 9.05c-.26.43-.636.98-1.126 1.532C4.827 11.76 3.202 13 1 13H.5a.5.5 0 0 1 0-1H1c1.798 0 3.173-1.01 4.126-2.082A9.6 9.6 0 0 0 6.444 8a9.6 9.6 0 0 0-1.317-1.918C4.172 5.01 2.796 4 1 4H.5a.5.5 0 0 1-.5-.5"/><path d="M13 5.466V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m0 9v-3.932a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192"/></svg>
+            <button
+              onClick={() => setIsShuffle(!isShuffle)}
+              title={isShuffle ? 'Shuffle On' : 'Shuffle Off'}
+              style={{
+                ...btnStyle,
+                width: '34px',
+                height: '34px',
+                color: isShuffle ? iconActiveColor : iconInactiveColor,
+                transition: 'transform 0.18s ease, color 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.12)';
+                if (!isShuffle) e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.color = isShuffle ? iconActiveColor : iconInactiveColor;
+              }}
+            >
+              <svg width="19" height="19" viewBox="0 0 16 16" fill="currentColor">
+                <path fillRule="evenodd" d="M0 3.5A.5.5 0 0 1 .5 3H1c2.202 0 3.827 1.24 4.874 2.418.49.552.865 1.102 1.126 1.532.26-.43.636-.98 1.126-1.532C9.173 4.24 10.798 3 13 3v1c-1.798 0-3.173 1.01-4.126 2.082A9.6 9.6 0 0 0 7.556 8a9.6 9.6 0 0 0 1.317 1.918C9.828 10.99 11.204 12 13 12v1c-2.202 0-3.827-1.24-4.874-2.418A10.6 10.6 0 0 1 7 9.05c-.26.43-.636.98-1.126 1.532C4.827 11.76 3.202 13 1 13H.5a.5.5 0 0 1 0-1H1c1.798 0 3.173-1.01 4.126-2.082A9.6 9.6 0 0 0 6.444 8a9.6 9.6 0 0 0-1.317-1.918C4.172 5.01 2.796 4 1 4H.5a.5.5 0 0 1-.5-.5"/>
+                <path d="M13 5.466V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m0 9v-3.932a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192"/>
+              </svg>
             </button>
           )}
           
-          <button onClick={(e) => { e.stopPropagation(); playPrev(); }} style={{ ...btnStyle, color: iconColor, transition: 'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8.404 7.304a.802.802 0 0 0 0 1.392l6.363 3.692c.52.302 1.233-.043 1.233-.696V4.308c0-.653-.713-.998-1.233-.696z"/><path d="M.404 7.304a.802.802 0 0 0 0 1.392l6.363 3.692c.52.302 1.233-.043 1.233-.696V4.308c0-.653-.713-.998-1.233-.696z"/></svg>
+          <button
+            onClick={(e) => { e.stopPropagation(); playPrev(); }}
+            title={t.previous || 'Previous'}
+            style={{
+              ...btnStyle,
+              width: isMobile ? '32px' : '38px',
+              height: isMobile ? '32px' : '38px',
+              color: iconColor,
+              transition: 'transform 0.18s ease, color 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.15)';
+              e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.color = iconColor;
+            }}
+          >
+            <svg width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"} viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8.404 7.304a.802.802 0 0 0 0 1.392l6.363 3.692c.52.302 1.233-.043 1.233-.696V4.308c0-.653-.713-.998-1.233-.696z"/>
+              <path d="M.404 7.304a.802.802 0 0 0 0 1.392l6.363 3.692c.52.302 1.233-.043 1.233-.696V4.308c0-.653-.713-.998-1.233-.696z"/>
+            </svg>
           </button>
           
           <button 
             onClick={(e) => { e.stopPropagation(); togglePlay(); }} 
+            title={isPlaying ? (t.pause || 'Pause') : (t.play || 'Play')}
             style={{ 
               ...btnStyle, 
-              width: '32px', 
-              height: '32px', 
+              width: isMobile ? '34px' : '44px', 
+              height: isMobile ? '34px' : '44px', 
               color: iconColor, 
-              transition: 'transform 0.2s', 
-              flexShrink: 0 
+              transition: 'transform 0.18s ease, color 0.18s ease', 
+              flexShrink: 0,
             }} 
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} 
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.15)';
+              e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+            }} 
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.color = iconColor;
+            }}
           >
             {isPlaying ? (
-              <svg width="28" height="28" viewBox="0 0 16 16" fill="currentColor">
+              <svg width={isMobile ? "26" : "34"} height={isMobile ? "26" : "34"} viewBox="0 0 16 16" fill="currentColor">
                 <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
               </svg>
             ) : (
-              <svg width="28" height="28" viewBox="0 0 16 16" fill="currentColor" style={{ transform: 'translateX(1.5px)' }}>
+              <svg width={isMobile ? "26" : "34"} height={isMobile ? "26" : "34"} viewBox="0 0 16 16" fill="currentColor" style={{ transform: 'translateX(1.5px)' }}>
                 <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
               </svg>
             )}
           </button>
           
-          <button onClick={(e) => { e.stopPropagation(); playNext(); }} style={{ ...btnStyle, color: iconColor, transition: 'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M7.596 7.304a.802.802 0 0 1 0 1.392l-6.363 3.692C.713 12.69 0 12.345 0 11.692V4.308c0-.653.713-.998 1.233-.696z"/><path d="M15.596 7.304a.802.802 0 0 1 0 1.392l-6.363 3.692C8.713 12.69 8 12.345 8 11.692V4.308c0-.653.713-.998 1.233-.696z"/></svg>
+          <button
+            onClick={(e) => { e.stopPropagation(); playNext(); }}
+            title={t.next || 'Next'}
+            style={{
+              ...btnStyle,
+              width: isMobile ? '32px' : '38px',
+              height: isMobile ? '32px' : '38px',
+              color: iconColor,
+              transition: 'transform 0.18s ease, color 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.15)';
+              e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.color = iconColor;
+            }}
+          >
+            <svg width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"} viewBox="0 0 16 16" fill="currentColor">
+              <path d="M7.596 7.304a.802.802 0 0 1 0 1.392l-6.363 3.692C.713 12.69 0 12.345 0 11.692V4.308c0-.653.713-.998 1.233-.696z"/>
+              <path d="M15.596 7.304a.802.802 0 0 1 0 1.392l-6.363 3.692C8.713 12.69 8 12.345 8 11.692V4.308c0-.653.713-.998 1.233-.696z"/>
+            </svg>
           </button>
           
           {!isMobile && (
-            <button onClick={() => toggleRepeat()} style={{ ...btnStyle, color: repeatMode !== 'off' ? iconActiveColor : iconInactiveColor, transition: 'all 0.2s' }}>
-              {repeatMode === 'one' ? <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11 4v1.466a.25.25 0 0 0 .41.192l2.36-1.966a.25.25 0 0 0 0-.384l-2.36-1.966a.25.25 0 0 0-.41.192V3H5a5 5 0 0 0-4.48 7.223.5.5 0 0 0 .896-.446A4 4 0 0 1 5 4zm4.48 1.777a.5.5 0 0 0-.896.446A4 4 0 0 1 11 12H5.001v-1.466a.25.25 0 0 0-.41-.192l-2.36 1.966a.25.25 0 0 0 0 .384l2.36 1.966a.25.25 0 0 0 .41-.192V13h6a5 5 0 0 0 4.48-7.223Z"/><path d="M9 5.5a.5.5 0 0 0-.854-.354l-1.75 1.75a.5.5 0 1 0 .708.708L8 6.707V10.5a.5.5 0 0 0 1 0z"/></svg> : <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11 5.466V4H5a4 4 0 0 0-3.584 5.777.5.5 0 1 1-.896.446A5 5 0 0 1 5 3h6V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m3.81.086a.5.5 0 0 1 .67.225A5 5 0 0 1 11 13H5v1.466a.25.25 0 0 1-.41.192l-2.36-1.966a.25.25 0 0 1 0-.384l2.36-1.966a.25.25 0 0 1 .41.192V12h6a4 4 0 0 0 3.585-5.777.5.5 0 0 1 .225-.67Z"/></svg>}
+            <button
+              onClick={() => toggleRepeat()}
+              title={repeatMode === 'one' ? 'Repeat One' : repeatMode === 'all' ? 'Repeat All' : 'Repeat Off'}
+              style={{
+                ...btnStyle,
+                width: '34px',
+                height: '34px',
+                color: repeatMode !== 'off' ? iconActiveColor : iconInactiveColor,
+                transition: 'transform 0.18s ease, color 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.12)';
+                if (repeatMode === 'off') e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.color = repeatMode !== 'off' ? iconActiveColor : iconInactiveColor;
+              }}
+            >
+              {repeatMode === 'one' ? (
+                <svg width="19" height="19" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M11 4v1.466a.25.25 0 0 0 .41.192l2.36-1.966a.25.25 0 0 0 0-.384l-2.36-1.966a.25.25 0 0 0-.41.192V3H5a5 5 0 0 0-4.48 7.223.5.5 0 0 0 .896-.446A4 4 0 0 1 5 4zm4.48 1.777a.5.5 0 0 0-.896.446A4 4 0 0 1 11 12H5.001v-1.466a.25.25 0 0 0-.41-.192l-2.36 1.966a.25.25 0 0 0 0 .384l2.36 1.966a.25.25 0 0 0 .41-.192V13h6a5 5 0 0 0 4.48-7.223Z"/>
+                  <path d="M9 5.5a.5.5 0 0 0-.854-.354l-1.75 1.75a.5.5 0 1 0 .708.708L8 6.707V10.5a.5.5 0 0 0 1 0z"/>
+                </svg>
+              ) : (
+                <svg width="19" height="19" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M11 5.466V4H5a4 4 0 0 0-3.584 5.777.5.5 0 1 1-.896.446A5 5 0 0 1 5 3h6V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m3.81.086a.5.5 0 0 1 .67.225A5 5 0 0 1 11 13H5v1.466a.25.25 0 0 1-.41.192l-2.36-1.966a.25.25 0 0 1 0-.384l2.36-1.966a.25.25 0 0 1 .41.192V12h6a4 4 0 0 0 3.585-5.777.5.5 0 0 1 .225-.67Z"/>
+                </svg>
+              )}
             </button>
           )}
         </div>
@@ -445,10 +554,27 @@ export const PlayerBar = ({
 
       {/* # کنترل صدا و صف فقط در دسکتاپ */}
       {!isMobile && (
-        <div style={{ width: '220px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '20px' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', height: '30px' }} onMouseEnter={() => setIsHoveringVolume(true)} onMouseLeave={() => setIsHoveringVolume(false)}>
-            <button style={{ ...btnStyle, color: isHoveringVolume ? (theme.isDark ? '#ffffff' : theme.colors.textPrimary) : iconInactiveColor }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <div style={{ minWidth: '220px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '22px' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', height: '36px' }} onMouseEnter={() => setIsHoveringVolume(true)} onMouseLeave={() => setIsHoveringVolume(false)}>
+            <button
+              title="Volume"
+              style={{
+                ...btnStyle,
+                width: '36px',
+                height: '36px',
+                color: isHoveringVolume ? (theme.isDark ? '#ffffff' : theme.colors.textPrimary) : iconInactiveColor,
+                transition: 'transform 0.18s ease, color 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
             </button>
             <div style={{ 
               position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', 
@@ -468,9 +594,30 @@ export const PlayerBar = ({
               </div>
             </div>
           </div>
-          <button onClick={() => setShowQueue(!showQueue)} style={{ ...btnStyle, color: showQueue ? iconActiveColor : iconInactiveColor, gap: '8px' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
-            <span style={{ fontSize: '13px', fontWeight: '500' }}>{t.queue}</span>
+          <button
+            onClick={() => setShowQueue(!showQueue)}
+            style={{
+              ...btnStyle,
+              padding: '6px 12px',
+              borderRadius: '12px',
+              color: showQueue ? iconActiveColor : iconInactiveColor,
+              backgroundColor: showQueue ? (theme.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)') : 'transparent',
+              gap: '8px',
+              transition: 'transform 0.18s ease, color 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              if (!showQueue) e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              if (!showQueue) e.currentTarget.style.color = iconInactiveColor;
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            <span style={{ fontSize: '13px', fontWeight: '600' }}>{t.queue}</span>
           </button>
         </div>
       )}

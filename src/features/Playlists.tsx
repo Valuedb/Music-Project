@@ -5,7 +5,7 @@ import type { Playlist, Song } from '../types';
 import {
   Play,
   Music,
-  MoreVertical,
+  MoreHorizontal,
   Trash2,
   Edit2,
   Plus,
@@ -131,7 +131,7 @@ const PlaylistMenuButton = ({
         e.currentTarget.style.color = theme.colors.textSecondary;
       }}
     >
-      <MoreVertical size={16} />
+      <MoreHorizontal size={18} />
     </button>
   );
 };
@@ -752,6 +752,8 @@ const SongRow = ({
       style={{
         display: 'flex',
         alignItems: 'center',
+        direction: 'ltr',
+        textAlign: 'left',
         gap: 12,
         padding: 10,
         borderBottom: `1px solid ${theme.colors.border}`,

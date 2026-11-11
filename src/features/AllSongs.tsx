@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
-  MoreVertical,
+  MoreHorizontal,
   ListPlus,
   Trash2,
   CheckSquare,
@@ -373,7 +373,7 @@ export const AllSongs = ({
                 onClick={() => setIsTopMenuOpen(!isTopMenuOpen)}
                 style={styles.actionBtn(theme, isTopMenuOpen)}
               >
-                <MoreVertical size={18} />{' '}
+                <MoreHorizontal size={18} />{' '}
                 {t.more || 'More'}
               </button>
 
@@ -543,6 +543,13 @@ export const AllSongs = ({
                 <div
                   style={{
                     position: 'relative',
+                    width: '44px',
+                    height: '44px',
+                    minWidth: '44px',
+                    minHeight: '44px',
+                    aspectRatio: '1 / 1',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
                     flexShrink: 0,
                     boxShadow: 'none',
                     filter: 'none',
@@ -551,7 +558,15 @@ export const AllSongs = ({
                   <img
                     src={song.cover}
                     alt=""
-                    style={styles.coverImage}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      aspectRatio: '1 / 1',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      boxShadow: 'none',
+                    }}
                   />
 
                   {isCurrentSong && (
@@ -562,11 +577,8 @@ export const AllSongs = ({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: 'rgba(0, 0, 0, 0.44)',
-                        backdropFilter: 'blur(3px)',
-                        WebkitBackdropFilter: 'blur(3px)',
-                        borderRadius: '8px',
                         pointerEvents: 'none',
+                        background: 'transparent',
                       }}
                     >
                       <div
@@ -575,6 +587,7 @@ export const AllSongs = ({
                           alignItems: 'flex-end',
                           gap: '2.5px',
                           height: '15px',
+                          filter: 'drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9))',
                         }}
                       >
                         <motion.span
@@ -712,7 +725,7 @@ export const AllSongs = ({
                         isMenuHovered
                       )}
                     >
-                      <MoreVertical size={18} />
+                      <MoreHorizontal size={18} />
                     </button>
 
                     {isMenuOpen && (
@@ -1070,6 +1083,8 @@ const styles = {
   ) => ({
     display: 'flex',
     alignItems: 'center',
+    direction: 'ltr' as const,
+    textAlign: 'left' as const,
     gap: '12px',
     padding: '6px 12px',
     borderRadius: '12px',
@@ -1111,8 +1126,12 @@ const styles = {
     cursor: 'pointer',
   }),
   coverImage: {
-    width: '42px',
-    height: '42px',
+    width: '44px',
+    height: '44px',
+    minWidth: '44px',
+    minHeight: '44px',
+    aspectRatio: '1 / 1',
+    display: 'block',
     borderRadius: '8px',
     objectFit: 'cover' as const,
     boxShadow: 'none',
@@ -1133,6 +1152,7 @@ const styles = {
     whiteSpace: 'nowrap' as const,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    textAlign: 'left' as const,
     color: isSelected
       ? theme.colors.primary
       : theme.colors.textPrimary,
@@ -1144,6 +1164,7 @@ const styles = {
     whiteSpace: 'nowrap' as const,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    textAlign: 'left' as const,
   }),
   duration: (theme: any) => ({
     fontSize: '12px',

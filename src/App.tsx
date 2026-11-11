@@ -27,7 +27,7 @@ function App() {
   const [language, setLanguage] = useState<Language>('fa');
   const [searchTerm, setSearchTerm] = useState("");
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
-  const [colorPalette, setColorPalette] = useState<PaletteType>('default');
+  const [colorPalette, setColorPalette] = useState<PaletteType>('nordic');
   const [isPlaying, setIsPlaying] = useState(false);
 
   // تشخیص حالت تیره/روشن سیستم یا گوشی
@@ -100,11 +100,30 @@ function App() {
 
   /** تغییر وضعیت آهنگ محبوب (Favorite) */
   const toggleFavoriteSong = (id: string) => {
+    // ۱. به‌روزرسانی صریح و آنی آهنگ در حال پخش
+    if (player.currentSong && player.currentSong.id === id) {
+      player.syncSong({
+        ...player.currentSong,
+        isFavorite: !player.currentSong.isFavorite,
+      });
+    } else {
+      const active = songs.find((s) => s.id === id);
+      if (active) {
+        player.syncSong({
+          ...active,
+          isFavorite: !active.isFavorite,
+        });
+      }
+    }
+
+    // ۲. ذخیره وضعیت جدید در کل کتابخانه
     setSongs((prev) =>
       prev.map((s) =>
         s.id === id ? { ...s, isFavorite: !s.isFavorite } : s
       )
     );
+
+    // ۳. به‌روزرسانی در پلی‌لیست‌ها
     setPlaylists((prev) =>
       prev.map((p) => ({
         ...p,
@@ -392,6 +411,8 @@ function App() {
         t={t}
         onSearch={setSearchTerm}
         theme={theme}
+        songs={songs}
+        onPlaySong={handlePlaySongFromList}
       />
 
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', zIndex: 1 }}>

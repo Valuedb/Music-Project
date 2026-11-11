@@ -3,12 +3,16 @@ import { motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
 import { SearchBar } from './SearchBar';
 
+import type { Song } from '../types';
+
 interface TopBarProps {
   currentTab: string;
   setCurrentTab: (tab: 'home' | 'allSongs' | 'playlists' | 'settings') => void;
   t: any;
   onSearch: (term: string) => void;
   theme: any;
+  songs?: Song[];
+  onPlaySong?: (song: Song, list: Song[]) => void;
 }
 
 // استخراج ایمن مقدار translateX از استایل کامپیوترشده برای سازگاری با تمامی مرورگرها در RTL و LTR
@@ -37,7 +41,15 @@ const getTranslateX = (el: HTMLElement): number => {
   return 0;
 };
 
-export const TopBar = ({ currentTab, setCurrentTab, t, onSearch, theme }: TopBarProps) => {
+export const TopBar = ({
+  currentTab,
+  setCurrentTab,
+  t,
+  onSearch,
+  theme,
+  songs,
+  onPlaySong,
+}: TopBarProps) => {
   const menuItems = useMemo(
     () => [
       { id: 'home', label: t.home },
@@ -135,7 +147,14 @@ export const TopBar = ({ currentTab, setCurrentTab, t, onSearch, theme }: TopBar
         </h1>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <SearchBar onSearch={onSearch} placeholder={t.search} theme={theme} />
+          <SearchBar
+            onSearch={onSearch}
+            placeholder={t.search}
+            theme={theme}
+            songs={songs}
+            onPlaySong={onPlaySong}
+            t={t}
+          />
           <button
             onClick={() => setCurrentTab('settings')}
             style={{

@@ -53,6 +53,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 }) => {
   const [showQueue, setShowQueue] = useState(false);
   const [isHoveringProgress, setIsHoveringProgress] = useState(false);
+  const [isHeartPopping, setIsHeartPopping] = useState(false);
 
   if (typeof document === 'undefined') return null;
 
@@ -210,8 +211,21 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
                   {onToggleFavorite && (
-                    <button
-                      onClick={() => onToggleFavorite(currentSong.id)}
+                    <motion.button
+                      whileTap={{ scale: 0.72 }}
+                      whileHover={{ scale: 1.12 }}
+                      animate={
+                        isHeartPopping
+                          ? { scale: [1, 1.45, 0.85, 1.18, 1] }
+                          : { scale: 1 }
+                      }
+                      transition={{ duration: 0.42, ease: 'easeOut' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(currentSong.id);
+                        setIsHeartPopping(true);
+                        setTimeout(() => setIsHeartPopping(false), 450);
+                      }}
                       title={
                         currentSong.isFavorite
                           ? t.removeFromFavorites || 'Remove from Favourites'
@@ -219,22 +233,27 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                       }
                       style={{
                         ...btnStyle,
-                        width: '36px',
-                        height: '36px',
+                        width: '38px',
+                        height: '38px',
                         borderRadius: '50%',
                         backgroundColor: currentSong.isFavorite
-                          ? 'rgba(255, 59, 48, 0.22)'
-                          : 'rgba(255, 255, 255, 0.1)',
+                          ? 'rgba(255, 59, 48, 0.28)'
+                          : 'rgba(255, 255, 255, 0.12)',
                         color: currentSong.isFavorite ? '#ff3b30' : '#ffffff',
-                        transition: 'all 0.2s',
+                        transition: 'background-color 0.2s, color 0.2s, box-shadow 0.2s',
+                        boxShadow: currentSong.isFavorite
+                          ? '0 0 18px rgba(255, 59, 48, 0.65)'
+                          : 'none',
+                        cursor: 'pointer',
                       }}
                     >
                       <Heart
-                        size={18}
+                        size={19}
                         fill={currentSong.isFavorite ? '#ff3b30' : 'none'}
                         color={currentSong.isFavorite ? '#ff3b30' : '#ffffff'}
+                        strokeWidth={currentSong.isFavorite ? 0 : 2}
                       />
-                    </button>
+                    </motion.button>
                   )}
 
                   <button

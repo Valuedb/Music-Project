@@ -256,7 +256,7 @@ const lightThemes: Record<PaletteType, any> = {
   },
   default: null as any,
 };
-lightThemes.default = lightThemes.amethyst;
+lightThemes.default = lightThemes.nordic;
 
 // تم‌های دارک (تیره) با سطوح شیشه‌ای بلور، درخشش‌های عمیق و رنگ‌های استخراج‌شده
 const darkThemes: Record<PaletteType, any> = {
@@ -482,11 +482,11 @@ const darkThemes: Record<PaletteType, any> = {
   },
   default: null as any,
 };
-darkThemes.default = darkThemes.amethyst;
+darkThemes.default = darkThemes.nordic;
 
 export const getTheme = (mode: ThemeMode | 'light' | 'dark', palette: PaletteType) => {
   const effectiveMode = mode === 'dark' ? 'dark' : 'light';
-  const paletteKey = (palette in lightThemes ? palette : 'amethyst') as PaletteType;
+  const paletteKey = (palette in lightThemes ? palette : 'nordic') as PaletteType;
   const theme = effectiveMode === 'light' ? lightThemes[paletteKey] : darkThemes[paletteKey];
 
   const isDark = effectiveMode === 'dark';

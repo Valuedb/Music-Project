@@ -23,12 +23,12 @@ interface SettingsProps {
 
 /** لیست پالت‌های رنگی قابل انتخاب در تنظیمات (برگرفته از عکس‌های ارسالی کاربر) */
 const PALETTES: { id: PaletteType; label: string; color: string; secondaryColor: string }[] = [
+  { id: 'nordic', label: 'نوردیک استیل', color: '#57707A', secondaryColor: '#C5BAC4' },
+  { id: 'glacier', label: 'اقیانوس و قطب', color: '#4A5C6A', secondaryColor: '#CCD0CF' },
   { id: 'amethyst', label: 'آمیتیست بنفش', color: '#8B7CC7', secondaryColor: '#5A3B8C' },
   { id: 'sapphire', label: 'یاقوت کبود', color: '#3B82F6', secondaryColor: '#1C2541' },
   { id: 'amber', label: 'قهوه و موکا', color: '#C6601F', secondaryColor: '#A88462' },
   { id: 'sunset', label: 'غروب نارنجی', color: '#FF7A00', secondaryColor: '#FFA94D' },
-  { id: 'nordic', label: 'نوردیک استیل', color: '#57707A', secondaryColor: '#C5BAC4' },
-  { id: 'glacier', label: 'اقیانوس و قطب', color: '#4A5C6A', secondaryColor: '#CCD0CF' },
   { id: 'emerald', label: 'زمرد و بیشه', color: '#48BB78', secondaryColor: '#163832' },
   { id: 'teal', label: 'تالاب دریایی', color: '#14B8A6', secondaryColor: '#7FB3B8' },
   { id: 'synthwave', label: 'نئون سایبر', color: '#FF6B6B', secondaryColor: '#D6598F' },
@@ -583,7 +583,7 @@ export const Settings = ({
               <PaletteSwatch
                 key={palette.id}
                 palette={palette}
-                selected={colorPalette === palette.id || (colorPalette === 'default' && palette.id === 'amethyst')}
+                selected={colorPalette === palette.id || (colorPalette === 'default' && palette.id === 'nordic')}
                 onClick={() => setColorPalette(palette.id)}
                 theme={theme}
               />
