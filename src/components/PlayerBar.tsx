@@ -6,6 +6,38 @@ import { FullScreenPlayer } from './FullScreenPlayer';
 import { syncMediaSession } from '../utils/mediaSession';
 import { audioEffects } from '../player/audioEffects';
 
+/**
+ * رنگ‌ها و متریال نوار پلیر به سبک Apple Music (رنگ‌های سیستمی Apple HIG):
+ * - پس‌زمینه نیمه‌شفاف است تا بلور شیشه‌ای (backdrop-filter) دیده شود
+ * - آیکون‌ها تک‌رنگ‌اند؛ فقط حالت روشن شافل/تکرار رنگ اصلی تم را می‌گیرد
+ */
+const getBarPalette = (isDark: boolean) =>
+  isDark
+    ? {
+        background: 'rgba(40, 40, 42, 0.72)',
+        border: 'rgba(255, 255, 255, 0.1)',
+        title: '#ffffff',
+        secondary: 'rgba(235, 235, 245, 0.6)',
+        icon: '#ffffff',
+        iconDim: 'rgba(235, 235, 245, 0.6)',
+        iconHover: '#ffffff',
+      }
+    : {
+        background: 'rgba(246, 246, 246, 0.72)',
+        border: 'rgba(0, 0, 0, 0.1)',
+        title: '#1d1d1f',
+        secondary: 'rgba(60, 60, 67, 0.6)',
+        icon: '#1d1d1f',
+        iconDim: 'rgba(60, 60, 67, 0.6)',
+        iconHover: '#000000',
+      };
+
+/** افکت لمس/کلیک دکمه‌ها مثل Apple: به‌جای بزرگ‌شدن، کمی کم‌رنگ می‌شوند */
+const BUTTON_CSS = `
+.pb-btn { transition: color 0.18s ease, opacity 0.18s ease; }
+.pb-btn:active { opacity: 0.55; }
+`;
+
 interface PlayerBarProps {
   currentSong: Song | null;
   queue: Song[];
@@ -204,12 +236,13 @@ export const PlayerBar = ({
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
   const volumePercent = volume * 100;
 
-  // # رنگ‌های متن و آیکون‌ها: در تم روشن دکمه‌ها خاکستری شیک هستند نه مشکی تند
-  const songTitleColor = theme.isDark ? '#ffffff' : theme.colors.textPrimary;
-  const artistColor = theme.isDark ? '#c5c2d6' : '#6b7280';
-  const iconColor = theme.isDark ? '#e4e4e7' : '#52525b';
+  // # رنگ‌ها و متریال به سبک Apple Music (تم روشن/تاریک)
+  const palette = getBarPalette(theme.isDark);
+  const songTitleColor = palette.title;
+  const artistColor = palette.secondary;
+  const iconColor = palette.icon;
   const iconActiveColor = theme.colors.primary;
-  const iconInactiveColor = theme.isDark ? '#a1a1aa' : '#9ca3af';
+  const iconInactiveColor = palette.iconDim;
 
   // # درخشش نوار پیشرفت (بر اساس پالت)
   const glowColor = `0 0 14px ${theme.colors.glow || theme.colors.primary}`;
@@ -222,8 +255,8 @@ export const PlayerBar = ({
       height: isMobile ? '66px' : '90px', 
       width: isMobile ? '320px' : '90%',
       maxWidth: isMobile ? 'calc(100% - 24px)' : '1000px',
-      // # پس‌زمینه شیشه‌ای شبیه اپل موزیک بر پایه رنگ #bababa
-      backgroundColor: theme.isDark ? 'rgba(121, 121, 121, 1)' : 'rgba(186, 186, 186, 0.85)', 
+      // # پس‌زمینه شیشه‌ای نیمه‌شفاف مثل Apple Music
+      backgroundColor: palette.background,
       backdropFilter: 'blur(30px) saturate(180%)', 
       WebkitBackdropFilter: 'blur(30px) saturate(180%)',
       borderRadius: isMobile ? '18px' : '24px',
@@ -238,9 +271,10 @@ export const PlayerBar = ({
       boxShadow: theme.isDark
         ? '0 16px 40px rgba(0, 0, 0, 0.5)'
         : '0 12px 32px rgba(0, 0, 0, 0.14)', 
-      border: 'none',
+      border: `0.5px solid ${palette.border}`,
       gap: isMobile ? '10px' : '0'
     }}>
+      <style>{BUTTON_CSS}</style>
       
       {/* # باکس صف */}
       <AnimatePresence>
@@ -410,7 +444,7 @@ export const PlayerBar = ({
         {/* دکمه‌های کنترل */}
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '16px' : '26px' }}>
           {!isMobile && (
-            <button
+            <button className="pb-btn"
               onClick={() => setIsShuffle(!isShuffle)}
               title={isShuffle ? 'Shuffle On' : 'Shuffle Off'}
               style={{
@@ -418,14 +452,11 @@ export const PlayerBar = ({
                 width: '34px',
                 height: '34px',
                 color: isShuffle ? iconActiveColor : iconInactiveColor,
-                transition: 'transform 0.18s ease, color 0.18s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.12)';
-                if (!isShuffle) e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+                if (!isShuffle) e.currentTarget.style.color = palette.iconHover;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
                 e.currentTarget.style.color = isShuffle ? iconActiveColor : iconInactiveColor;
               }}
             >
@@ -436,7 +467,7 @@ export const PlayerBar = ({
             </button>
           )}
           
-          <button
+          <button className="pb-btn"
             onClick={(e) => { e.stopPropagation(); playPrev(); }}
             title={t.previous || 'Previous'}
             style={{
@@ -444,14 +475,11 @@ export const PlayerBar = ({
               width: isMobile ? '32px' : '38px',
               height: isMobile ? '32px' : '38px',
               color: iconColor,
-              transition: 'transform 0.18s ease, color 0.18s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.15)';
-              e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+              e.currentTarget.style.color = palette.iconHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
               e.currentTarget.style.color = iconColor;
             }}
           >
@@ -461,7 +489,7 @@ export const PlayerBar = ({
             </svg>
           </button>
           
-          <button 
+          <button className="pb-btn"
             onClick={(e) => { e.stopPropagation(); togglePlay(); }} 
             title={isPlaying ? (t.pause || 'Pause') : (t.play || 'Play')}
             style={{ 
@@ -469,15 +497,12 @@ export const PlayerBar = ({
               width: isMobile ? '34px' : '44px', 
               height: isMobile ? '34px' : '44px', 
               color: iconColor, 
-              transition: 'transform 0.18s ease, color 0.18s ease', 
               flexShrink: 0,
             }} 
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.15)';
-              e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+              e.currentTarget.style.color = palette.iconHover;
             }} 
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
               e.currentTarget.style.color = iconColor;
             }}
           >
@@ -492,7 +517,7 @@ export const PlayerBar = ({
             )}
           </button>
           
-          <button
+          <button className="pb-btn"
             onClick={(e) => { e.stopPropagation(); playNext(); }}
             title={t.next || 'Next'}
             style={{
@@ -500,14 +525,11 @@ export const PlayerBar = ({
               width: isMobile ? '32px' : '38px',
               height: isMobile ? '32px' : '38px',
               color: iconColor,
-              transition: 'transform 0.18s ease, color 0.18s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.15)';
-              e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+              e.currentTarget.style.color = palette.iconHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
               e.currentTarget.style.color = iconColor;
             }}
           >
@@ -518,7 +540,7 @@ export const PlayerBar = ({
           </button>
           
           {!isMobile && (
-            <button
+            <button className="pb-btn"
               onClick={() => toggleRepeat()}
               title={repeatMode === 'one' ? 'Repeat One' : repeatMode === 'all' ? 'Repeat All' : 'Repeat Off'}
               style={{
@@ -526,14 +548,11 @@ export const PlayerBar = ({
                 width: '34px',
                 height: '34px',
                 color: repeatMode !== 'off' ? iconActiveColor : iconInactiveColor,
-                transition: 'transform 0.18s ease, color 0.18s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.12)';
-                if (repeatMode === 'off') e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+                if (repeatMode === 'off') e.currentTarget.style.color = palette.iconHover;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
                 e.currentTarget.style.color = repeatMode !== 'off' ? iconActiveColor : iconInactiveColor;
               }}
             >
@@ -556,20 +575,13 @@ export const PlayerBar = ({
       {!isMobile && (
         <div style={{ minWidth: '220px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '22px' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', height: '36px' }} onMouseEnter={() => setIsHoveringVolume(true)} onMouseLeave={() => setIsHoveringVolume(false)}>
-            <button
+            <button className="pb-btn"
               title="Volume"
               style={{
                 ...btnStyle,
                 width: '36px',
                 height: '36px',
-                color: isHoveringVolume ? (theme.isDark ? '#ffffff' : theme.colors.textPrimary) : iconInactiveColor,
-                transition: 'transform 0.18s ease, color 0.18s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
+                color: isHoveringVolume ? palette.iconHover : iconInactiveColor,
               }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
@@ -594,7 +606,7 @@ export const PlayerBar = ({
               </div>
             </div>
           </div>
-          <button
+          <button className="pb-btn"
             onClick={() => setShowQueue(!showQueue)}
             style={{
               ...btnStyle,
@@ -603,14 +615,11 @@ export const PlayerBar = ({
               color: showQueue ? iconActiveColor : iconInactiveColor,
               backgroundColor: showQueue ? (theme.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)') : 'transparent',
               gap: '8px',
-              transition: 'transform 0.18s ease, color 0.18s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              if (!showQueue) e.currentTarget.style.color = theme.isDark ? '#ffffff' : '#18181b';
+              if (!showQueue) e.currentTarget.style.color = palette.iconHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
               if (!showQueue) e.currentTarget.style.color = iconInactiveColor;
             }}
           >
