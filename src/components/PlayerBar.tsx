@@ -8,14 +8,12 @@ import { audioEffects } from '../player/audioEffects';
 
 /**
  * رنگ‌ها و متریال نوار پلیر به سبک Apple Music (رنگ‌های سیستمی Apple HIG):
- * - پس‌زمینه نیمه‌شفاف است تا بلور شیشه‌ای (backdrop-filter) دیده شود
+ * - سطح شیشه‌ای نوار (پس‌زمینه، لبه و سایه) از theme.glass.bar می‌آید (src/theme.ts)
  * - آیکون‌ها تک‌رنگ‌اند؛ فقط حالت روشن شافل/تکرار رنگ اصلی تم را می‌گیرد
  */
 const getBarPalette = (isDark: boolean) =>
   isDark
     ? {
-        background: 'rgba(40, 40, 42, 0.72)',
-        border: 'rgba(255, 255, 255, 0.1)',
         title: '#ffffff',
         secondary: 'rgba(235, 235, 245, 0.6)',
         icon: '#ffffff',
@@ -23,8 +21,6 @@ const getBarPalette = (isDark: boolean) =>
         iconHover: '#ffffff',
       }
     : {
-        background: 'rgba(246, 246, 246, 0.72)',
-        border: 'rgba(0, 0, 0, 0.1)',
         title: '#1d1d1f',
         secondary: 'rgba(60, 60, 67, 0.6)',
         icon: '#1d1d1f',
@@ -236,6 +232,9 @@ export const PlayerBar = ({
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
   const volumePercent = volume * 100;
 
+  // # درخشش نوار پیشرفت (بر اساس پالت)
+  const glowColor = `0 0 14px ${theme.colors.glow || theme.colors.primary}`;
+
   // # رنگ‌ها و متریال به سبک Apple Music (تم روشن/تاریک)
   const palette = getBarPalette(theme.isDark);
   const songTitleColor = palette.title;
@@ -243,9 +242,6 @@ export const PlayerBar = ({
   const iconColor = palette.icon;
   const iconActiveColor = theme.colors.primary;
   const iconInactiveColor = palette.iconDim;
-
-  // # درخشش نوار پیشرفت (بر اساس پالت)
-  const glowColor = `0 0 14px ${theme.colors.glow || theme.colors.primary}`;
 
   const btnStyle = { background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 };
 
@@ -255,8 +251,8 @@ export const PlayerBar = ({
       height: isMobile ? '66px' : '90px', 
       width: isMobile ? '320px' : '90%',
       maxWidth: isMobile ? 'calc(100% - 24px)' : '1000px',
-      // # پس‌زمینه شیشه‌ای نیمه‌شفاف مثل Apple Music
-      backgroundColor: palette.background,
+      // # سطح شیشه‌ای نوار (پس‌زمینه، لبه، سایه) از تم می‌آید
+      background: theme.glass.bar.background,
       backdropFilter: 'blur(30px) saturate(180%)', 
       WebkitBackdropFilter: 'blur(30px) saturate(180%)',
       borderRadius: isMobile ? '18px' : '24px',
@@ -268,10 +264,8 @@ export const PlayerBar = ({
       position: 'relative', 
       color: songTitleColor, 
       zIndex: 20,
-      boxShadow: theme.isDark
-        ? '0 16px 40px rgba(0, 0, 0, 0.5)'
-        : '0 12px 32px rgba(0, 0, 0, 0.14)', 
-      border: `0.5px solid ${palette.border}`,
+      boxShadow: theme.glass.bar.boxShadow,
+      border: theme.glass.bar.border,
       gap: isMobile ? '10px' : '0'
     }}>
       <style>{BUTTON_CSS}</style>
@@ -590,15 +584,19 @@ export const PlayerBar = ({
             </button>
             <div style={{ 
               position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', 
-              height: isHoveringVolume ? '100px' : '0px', width: '40px', opacity: isHoveringVolume ? 1 : 0, 
+              height: isHoveringVolume ? '128px' : '0px', width: '40px', opacity: isHoveringVolume ? 1 : 0, 
               overflow: 'hidden', transition: 'all 0.3s ease', 
               backgroundColor: theme.isDark ? 'rgba(30, 24, 48, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
               backdropFilter: 'blur(16px)',
               borderRadius: theme.radius.lg, border: `1px solid ${theme.colors.border}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
               padding: isHoveringVolume ? '10px 0' : '0', marginBottom: '10px', 
               boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
             }}>
+              {/* # درصد صدا */}
+              <span style={{ fontSize: '11px', fontWeight: 600, color: theme.colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(volumePercent)}
+              </span>
               <div style={{ position: 'relative', width: '20px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ position: 'absolute', top: 0, bottom: 0, width: '4px', backgroundColor: theme.isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)', borderRadius: '2px', left: '8px' }}></div>
                 <div style={{ position: 'absolute', bottom: 0, height: `${volumePercent}%`, width: '4px', backgroundColor: theme.colors.primary, borderRadius: '2px', left: '8px' }}></div>

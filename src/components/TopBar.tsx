@@ -241,8 +241,9 @@ export const TopBar = ({
                   outline: 'none',
                   userSelect: 'none',
                   transform: isActive ? 'scale(1.12)' : 'scale(0.88)',
-                  opacity: isActive ? 1 : 0.45,
-                  filter: isActive ? 'none' : 'blur(2px)',
+                  // # تب غیرفعال خوانا بماند (قبلاً در تم روشن با بلور و شفافیت محو می‌شد)
+                  opacity: isActive ? 1 : theme.isDark ? 0.55 : 0.8,
+                  filter: 'none',
                   zIndex: isActive ? 2 : 1,
                   transition: 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease, filter 0.35s ease, color 0.35s ease',
                 }}

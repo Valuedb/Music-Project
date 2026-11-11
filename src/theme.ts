@@ -1,3 +1,5 @@
+import { withAlpha } from './utils/color';
+
 export type PaletteType =
   | 'amethyst'
   | 'sapphire'
@@ -77,7 +79,7 @@ const lightThemes: Record<PaletteType, any> = {
   amber: {
     name: 'قهوه و موکا',
     colors: {
-      primary: '#C6601F',
+      primary: '#AE541B',
       accent: '#9A4612',
       secondary: '#78350F',
       background: '#FAF4EE',
@@ -97,7 +99,7 @@ const lightThemes: Record<PaletteType, any> = {
   sunset: {
     name: 'غروب نارنجی',
     colors: {
-      primary: '#EA580C',
+      primary: '#BB460A',
       accent: '#C2410C',
       secondary: '#9A3412',
       background: '#FAF3EC',
@@ -157,7 +159,7 @@ const lightThemes: Record<PaletteType, any> = {
   synthwave: {
     name: 'نئون سایبر',
     colors: {
-      primary: '#E11D48',
+      primary: '#D41B44',
       accent: '#BE123C',
       secondary: '#9F1239',
       background: '#FAF2F5',
@@ -205,7 +207,7 @@ const lightThemes: Record<PaletteType, any> = {
       surfaceSolid: '#C5BAC4',
       surfaceHover: 'rgba(87, 112, 122, 0.1)',
       textPrimary: '#191D23',
-      textSecondary: '#57707A',
+      textSecondary: '#4D636B',
       textInverse: '#ffffff',
       border: 'rgba(87, 112, 122, 0.25)',
       borderLight: 'rgba(255, 255, 255, 0.9)',
@@ -237,7 +239,7 @@ const lightThemes: Record<PaletteType, any> = {
   mint: {
     name: 'فیروزه و نعنا',
     colors: {
-      primary: '#0D9488',
+      primary: '#0B7C72',
       accent: '#0F766E',
       secondary: '#115E59',
       background: '#EEF9F7',
@@ -520,10 +522,40 @@ export const getTheme = (mode: ThemeMode | 'light' | 'dark', palette: PaletteTyp
     },
   };
 
+  /**
+   * سطح نوار پلیر (شیشه‌ی نیمه‌شفاف) مخصوص هر حالت:
+   * - تاریک: رنگ تم (surfaceSolid) با شفافیت، تا بلور دیده شود
+   * - روشن: پس‌زمینه‌ی صفحه تقریباً سفید است، پس شیشه‌ی سفید دیده نمی‌شد. اینجا سفید
+   *   نیمه‌شفاف با یک لایه‌ی کم‌رنگ از رنگ متن، لبه‌ی روشن و سایه‌ی رنگی هم‌رنگ پالت
+   *   ساخته می‌شود تا نوار از لیست پشتش جدا و شیشه‌ای دیده شود.
+   */
+  const { primary, surfaceSolid, textPrimary } = theme.colors;
+  const bar = isDark
+    ? {
+        background: withAlpha(surfaceSolid, 0.72),
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        boxShadow: [
+          '0 16px 40px rgba(0, 0, 0, 0.5)',
+          'inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+        ].join(', '),
+      }
+    : {
+        background: `linear-gradient(${withAlpha(textPrimary, 0.07)}, ${withAlpha(
+          textPrimary,
+          0.07,
+        )}), rgba(255, 255, 255, 0.55)`,
+        border: `1px solid ${withAlpha(textPrimary, 0.12)}`,
+        boxShadow: [
+          `0 14px 36px ${withAlpha(primary, 0.22)}`, // سایه‌ی رنگی هم‌رنگ پالت
+          '0 2px 8px rgba(0, 0, 0, 0.08)',
+          'inset 0 1px 0 rgba(255, 255, 255, 0.9)', // لبه‌ی روشن بالا
+        ].join(', '),
+      };
+
   return {
     ...theme,
     isDark,
-    glass,
+    glass: { ...glass, bar },
     fonts: baseFonts,
     shadows: baseShadows,
     radius: baseRadius,
