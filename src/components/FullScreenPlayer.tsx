@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart } from 'lucide-react';
+import { Heart, Play, Shuffle, Trash2, ArrowUp, ArrowDown, CornerDownLeft } from 'lucide-react';
 import type { RepeatMode, Song } from '../types';
 
 interface FullScreenPlayerProps {
@@ -24,6 +24,11 @@ interface FullScreenPlayerProps {
   queue: Song[];
   removeFromQueue: (index: number) => void;
   onToggleFavorite?: (id: string) => void;
+  reorderQueue?: (fromIndex: number, toIndex: number) => void;
+  onPlayQueueSong?: (index: number) => void;
+  onClearQueue?: () => void;
+  onShuffleQueue?: () => void;
+  onPlayNextInQueue?: (index: number) => void;
   t: any;
   theme: any;
 }
@@ -48,6 +53,11 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
   queue,
   removeFromQueue,
   onToggleFavorite,
+  reorderQueue,
+  onPlayQueueSong,
+  onClearQueue,
+  onShuffleQueue,
+  onPlayNextInQueue,
   t,
   theme,
 }) => {
@@ -301,65 +311,162 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = ({
                   style={{
                     width: '100%',
                     height: '100%',
-                    maxHeight: '320px',
-                    backgroundColor: 'rgba(25, 25, 28, 0.85)',
-                    backdropFilter: 'blur(20px)',
+                    maxHeight: '360px',
+                    backgroundColor: 'rgba(25, 25, 28, 0.88)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
                     borderRadius: '20px',
                     padding: '16px',
                     overflowY: 'auto',
                     boxSizing: 'border-box',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 'bold' }}>{t.queue || 'صف پخش'}</span>
-                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{queue.length} {t.allSongs || 'آهنگ'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#ffffff' }}>{t.queueTitle || t.queue || 'صف پخش'}</div>
+                      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                        {queue.length} {t.totalTracks || 'آهنگ'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {queue.length > 1 && onShuffleQueue && (
+                        <button
+                          onClick={onShuffleQueue}
+                          title={t.shuffleQueue || 'بر زدن صف'}
+                          style={{
+                            ...btnStyle,
+                            color: 'rgba(255,255,255,0.7)',
+                            padding: '6px',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <Shuffle size={16} />
+                        </button>
+                      )}
+                      {queue.length > 0 && onClearQueue && (
+                        <button
+                          onClick={onClearQueue}
+                          title={t.clearQueue || 'پاک کردن صف'}
+                          style={{
+                            ...btnStyle,
+                            color: 'rgba(255,255,255,0.7)',
+                            padding: '6px',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
                   {queue.length === 0 ? (
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', textAlign: 'center', marginTop: '40px' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', textAlign: 'center', padding: '36px 12px' }}>
                       {t.queueEmpty || 'صف پخش خالی است'}
                     </div>
                   ) : (
-                    queue.map((song, index) => (
-                      <div
-                        key={song.id + index}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          marginBottom: '8px',
-                          padding: '8px',
-                          borderRadius: '12px',
-                          backgroundColor: 'rgba(255,255,255,0.06)',
-                        }}
-                      >
-                        <img
-                          src={song.cover}
-                          alt=""
-                          style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
-                        />
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <div style={{ fontSize: '14px', fontWeight: '500', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {song.name}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {queue.map((song, index) => (
+                        <div
+                          key={song.id + index}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '8px 10px',
+                            borderRadius: '12px',
+                            backgroundColor: 'rgba(255,255,255,0.06)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            cursor: onPlayQueueSong ? 'pointer' : 'default',
+                            transition: 'all 0.16s ease',
+                          }}
+                          onClick={() => onPlayQueueSong?.(index)}
+                        >
+                          <div style={{ position: 'relative', width: '40px', height: '40px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
+                            <img
+                              src={song.cover}
+                              alt=""
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            {onPlayQueueSong && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  backgroundColor: 'rgba(0,0,0,0.4)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  opacity: 0.9,
+                                }}
+                              >
+                                <Play size={13} fill="#ffffff" color="#ffffff" />
+                              </div>
+                            )}
                           </div>
-                          <div style={{ fontSize: '12px', color: '#a1a1a6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {song.artist}
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '13.5px', fontWeight: '500', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {song.name}
+                            </div>
+                            <div style={{ fontSize: '11.5px', color: '#a1a1a6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
+                              {song.artist}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {reorderQueue && index > 0 && (
+                              <button
+                                onClick={() => reorderQueue(index, index - 1)}
+                                title={t.moveUp || 'انتقال به بالا'}
+                                style={{ ...btnStyle, color: 'rgba(255,255,255,0.6)', padding: '5px' }}
+                              >
+                                <ArrowUp size={14} />
+                              </button>
+                            )}
+
+                            {reorderQueue && index < queue.length - 1 && (
+                              <button
+                                onClick={() => reorderQueue(index, index + 1)}
+                                title={t.moveDown || 'انتقال به پایین'}
+                                style={{ ...btnStyle, color: 'rgba(255,255,255,0.6)', padding: '5px' }}
+                              >
+                                <ArrowDown size={14} />
+                              </button>
+                            )}
+
+                            {onPlayNextInQueue && index > 0 && (
+                              <button
+                                onClick={() => onPlayNextInQueue(index)}
+                                title={t.playNext || 'پخش به عنوان بعدی'}
+                                style={{ ...btnStyle, color: 'rgba(255,255,255,0.6)', padding: '5px' }}
+                              >
+                                <CornerDownLeft size={14} />
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => removeFromQueue(index)}
+                              title={t.removeFromQueue || 'حذف'}
+                              style={{
+                                ...btnStyle,
+                                color: 'rgba(255,255,255,0.5)',
+                                padding: '5px',
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </div>
-                        <button
-                          onClick={() => removeFromQueue(index)}
-                          style={{
-                            ...btnStyle,
-                            color: 'rgba(255,255,255,0.5)',
-                            padding: '6px',
-                          }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
               ) : (

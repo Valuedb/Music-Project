@@ -485,6 +485,11 @@ function App() {
           t={t}
           theme={theme}
           onPlayStateChange={setIsPlaying}
+          onPlayQueueSong={player.playQueueSongAt}
+          onClearQueue={player.clearQueue}
+          onShuffleQueue={player.shuffleQueue}
+          onPlayNextInQueue={player.playNextInQueue}
+          onCreatePlaylist={handleCreatePlaylist}
         />
       </div>
     </div>

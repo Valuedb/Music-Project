@@ -96,6 +96,43 @@ export const usePlayer = (songs: readonly Song[]) => {
   const reorderQueue = (fromIndex: number, toIndex: number) =>
     setQueue((prev) => moveItem(prev, fromIndex, toIndex));
 
+  /** پخش مستقیم یکی از آهنگ‌های داخل صف */
+  const playQueueSongAt = (index: number) => {
+    const target = queue[index];
+    if (!target) return;
+    remember(target.id);
+    playedIds.current.add(target.id);
+    start(target);
+  };
+
+  /** پاک کردن کل صف پخش */
+  const clearQueue = () => setQueue([]);
+
+  /** بر زدن تصادفی آهنگ‌های صف پخش */
+  const shuffleQueue = () => {
+    setQueue((prev) => {
+      if (prev.length <= 1) return prev;
+      const copy = [...prev];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    });
+  };
+
+  /** جابه‌جایی آهنگ به جایگاه بعدی برای پخش فوری پس از آهنگ جاری */
+  const playNextInQueue = (index: number) => {
+    if (index === 0) return;
+    reorderQueue(index, 0);
+  };
+
+  /** جابه‌جایی یک آهنگ یک پله به بالا یا پایین */
+  const moveQueueItem = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= queue.length) return;
+    reorderQueue(fromIndex, toIndex);
+  };
+
   /** وقتی اطلاعات یه آهنگ ویرایش شد، نسخه‌ی داخل صف و پلیر رو هم به‌روز کن */
   const syncSong = (updated: Song) => {
     setQueue((prev) => prev.map((song) => (song.id === updated.id ? updated : song)));
@@ -122,6 +159,11 @@ export const usePlayer = (songs: readonly Song[]) => {
     addToQueue,
     removeFromQueueAt,
     reorderQueue,
+    playQueueSongAt,
+    clearQueue,
+    shuffleQueue,
+    playNextInQueue,
+    moveQueueItem,
     syncSong,
     removeSong,
   };

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { PLAY_COUNT_THRESHOLD_SECONDS } from '../player/constants';
 import type { RepeatMode, Song } from '../types';
 import { FullScreenPlayer } from './FullScreenPlayer';
+import { QueueDrawer } from './QueueDrawer';
 import { syncMediaSession } from '../utils/mediaSession';
 import { audioEffects } from '../player/audioEffects';
 
@@ -51,12 +51,18 @@ interface PlayerBarProps {
   t: any;
   theme: any;
   onPlayStateChange?: (isPlaying: boolean) => void;
+  onPlayQueueSong?: (index: number) => void;
+  onClearQueue?: () => void;
+  onShuffleQueue?: () => void;
+  onPlayNextInQueue?: (index: number) => void;
+  onCreatePlaylist?: (name: string, songs: Song[]) => void;
 }
 
 export const PlayerBar = ({ 
   currentSong, queue, removeFromQueue, playNext, playPrev, reorderQueue,
   repeatMode, setRepeatMode, isShuffle, setIsShuffle, playToken, onSongPlayed,
-  onToggleFavorite, t, theme, onPlayStateChange
+  onToggleFavorite, t, theme, onPlayStateChange,
+  onPlayQueueSong, onClearQueue, onShuffleQueue, onPlayNextInQueue, onCreatePlaylist
 }: PlayerBarProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -72,18 +78,6 @@ export const PlayerBar = ({
   const [isHoveringProgress, setIsHoveringProgress] = useState(false);
   const [isHoveringVolume, setIsHoveringVolume] = useState(false);
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
-
-  const queueRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showQueue && queueRef.current && !queueRef.current.contains(event.target as Node)) {
-        setShowQueue(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showQueue]);
 
   /** برای هر پخش فقط یک بار playCount زیاد بشه */
   const countedRef = useRef(false);
@@ -270,60 +264,28 @@ export const PlayerBar = ({
     }}>
       <style>{BUTTON_CSS}</style>
       
-      {/* # باکس صف */}
-      <AnimatePresence>
-        {!isMobile && showQueue && (
-          <div style={{ position: 'absolute', bottom: '90px', right: '24px', zIndex: 50 }} ref={queueRef}>
-            <motion.div 
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              style={{ 
-                width: '350px', maxHeight: '400px', 
-                backgroundColor: theme.isDark ? 'rgba(26, 20, 44, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
-                backdropFilter: 'blur(24px)', 
-                borderRadius: theme.radius.xl || '20px', 
-                border: `1px solid ${theme.colors.border}`, 
-                padding: '20px', overflowY: 'auto', 
-                boxShadow: theme.shadows.hard,
-                color: theme.colors.textPrimary
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: theme.colors.textPrimary, margin: 0 }}>{t.queue}</h3>
-                <motion.button whileHover={{ rotate: 90 }} onClick={() => setShowQueue(false)} style={{ background: 'none', border: 'none', color: theme.colors.textSecondary, cursor: 'pointer', fontSize: '16px' }}>✕</motion.button>
-              </div>
-              {queue.length === 0 ? (
-                <p style={{ color: theme.colors.textSecondary, fontSize: '13px' }}>{t.queueEmpty}</p>
-              ) : (
-                queue.map((song, index) => (
-                  <div 
-                    key={song.id + index} draggable 
-                    onDragStart={(e) => e.dataTransfer.setData('text/plain', index.toString())} 
-                    onDragOver={(e) => e.preventDefault()} 
-                    onDrop={(e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain'), 10); if (!Number.isNaN(from)) reorderQueue(from, index); }} 
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', padding: '8px', borderRadius: theme.radius.md, cursor: 'grab', backgroundColor: theme.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}
-                  >
-                    <img src={song.cover} alt="" style={{ width: '40px', height: '40px', borderRadius: theme.radius.sm, pointerEvents: 'none' }} />
-                    <div style={{ flex: 1, overflow: 'hidden', pointerEvents: 'none' }}>
-                      <div style={{ fontSize: '14px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: theme.colors.textPrimary }}>{song.name}</div>
-                      <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>{song.artist}</div>
-                    </div>
-                    <button onClick={() => removeFromQueue(index)} style={{ background: 'none', border: 'none', color: theme.colors.textSecondary, cursor: 'pointer', pointerEvents: 'auto', padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.color = theme.colors.danger; e.currentTarget.style.transform = 'scale(1.15)'; }} onMouseLeave={(e) => { e.currentTarget.style.color = theme.colors.textSecondary; e.currentTarget.style.transform = 'scale(1)'; }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/>
-                      </svg>
-                    </button>
-                  </div>
-                ))
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* # کامپوننت حرفه‌ای صف پخش (دسکتاپ و موبایل) */}
+      <QueueDrawer
+        isOpen={showQueue}
+        onClose={() => setShowQueue(false)}
+        queue={queue}
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        onPlaySong={(idx) => onPlayQueueSong?.(idx)}
+        onRemoveFromQueue={removeFromQueue}
+        onReorderQueue={reorderQueue}
+        onClearQueue={() => onClearQueue?.()}
+        onShuffleQueue={() => onShuffleQueue?.()}
+        onPlayNextInQueue={(idx) => {
+          if (onPlayNextInQueue) onPlayNextInQueue(idx);
+          else reorderQueue(idx, 0);
+        }}
+        onCreatePlaylist={onCreatePlaylist}
+        onToggleFavorite={onToggleFavorite}
+        theme={theme}
+        t={t}
+        isMobile={isMobile}
+      />
 
       {/* # اطلاعات آهنگ (کلیک برای باز کردن تمام صفحه) */}
       <div 
@@ -562,6 +524,25 @@ export const PlayerBar = ({
               )}
             </button>
           )}
+          
+          {isMobile && (
+            <button className="pb-btn"
+              data-queue-toggle="true"
+              onClick={(e) => { e.stopPropagation(); setShowQueue(!showQueue); }}
+              title={t.queue}
+              style={{
+                ...btnStyle,
+                width: '32px',
+                height: '32px',
+                color: showQueue ? iconActiveColor : iconColor,
+                flexShrink: 0,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -605,6 +586,7 @@ export const PlayerBar = ({
             </div>
           </div>
           <button className="pb-btn"
+            data-queue-toggle="true"
             onClick={() => setShowQueue(!showQueue)}
             style={{
               ...btnStyle,
@@ -659,6 +641,11 @@ export const PlayerBar = ({
         onToggleRepeat={toggleRepeat}
         queue={queue}
         removeFromQueue={removeFromQueue}
+        reorderQueue={reorderQueue}
+        onPlayQueueSong={onPlayQueueSong}
+        onClearQueue={onClearQueue}
+        onShuffleQueue={onShuffleQueue}
+        onPlayNextInQueue={onPlayNextInQueue}
         onToggleFavorite={onToggleFavorite}
         t={t}
         theme={theme}
