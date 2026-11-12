@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Song, Playlist } from '../types';
 import { AllSongs } from './AllSongs';
+import { CoverImage } from '../components/CoverImage';
 
 // ================= اینترفیس پراپ‌ها =================
 
@@ -29,6 +30,7 @@ interface HomeProps {
   theme: any;
   language: 'fa' | 'en';
   isPlaying?: boolean;
+  glassCardCovers?: boolean;
 }
 
 type ActiveCollection =
@@ -232,9 +234,10 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
                   backgroundColor: 'rgba(0,0,0,0.2)',
                 }}
               >
-                <img
+                <CoverImage
                   src={song.cover}
                   alt=""
+                  iconSize={16}
                   style={{
                     width: '100%',
                     height: '100%',
@@ -333,6 +336,7 @@ export const Home: React.FC<HomeProps> = ({
   theme,
   language,
   isPlaying,
+  glassCardCovers = true,
 }) => {
   const [activeList, setActiveList] = useState<ActiveCollection>(null);
 
@@ -401,6 +405,7 @@ export const Home: React.FC<HomeProps> = ({
         onBack={() => setActiveList(null)}
         emptyMessage={activeConfig.empty}
         isPlaying={isPlaying}
+        glassCardCovers={glassCardCovers}
       />
     );
   }

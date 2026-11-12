@@ -1,10 +1,26 @@
 import { useState, useRef, useEffect } from 'react';
 import type { EqualizerSettings, Song } from '../types';
-import { parseBlob } from 'music-metadata';
-import { Upload, Globe, Music, Palette, Sun, Moon, Smartphone, ChevronDown, Check } from 'lucide-react';
+import { 
+  Upload, 
+  Globe, 
+  Music, 
+  Palette, 
+  Sun, 
+  Moon, 
+  Smartphone, 
+  ChevronDown, 
+  Check,
+  Image as ImageIcon,
+  RefreshCw,
+  Layers,
+  FolderUp,
+  Download
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PaletteType, ThemeMode } from '../theme';
 import { EqualizerControl } from '../components/EqualizerControl';
+import { extractSongsBatched } from '../utils/audioMetadata';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface SettingsProps {
   songs: Song[];
@@ -19,10 +35,20 @@ interface SettingsProps {
   equalizerSettings: EqualizerSettings;
   setEqualizerSettings: (settings: EqualizerSettings) => void;
   theme: any;
+  customBackground?: string | null;
+  setCustomBackground?: (bg: string | null) => void;
+  customBgBlur?: number;
+  setCustomBgBlur?: (blur: number) => void;
+  customBgDim?: number;
+  setCustomBgDim?: (dim: number) => void;
+  glassCardCovers?: boolean;
+  setGlassCardCovers?: (enabled: boolean) => void;
 }
 
-/** لیست پالت‌های رنگی قابل انتخاب در تنظیمات (برگرفته از عکس‌های ارسالی کاربر) */
+/** لیست پالت‌های رنگی قابل انتخاب در تنظیمات (با اولویت پالت‌های دو رنگی ساده سفید-آبی و سفید-قرمز) */
 const PALETTES: { id: PaletteType; label: string; color: string; secondaryColor: string }[] = [
+  { id: 'classic-blue', label: 'آبی کلاسیک (سفید آبی / مشکی آبی)', color: '#0066FF', secondaryColor: '#38BDF8' },
+  { id: 'classic-red', label: 'قرمز کلاسیک (سفید قرمز / مشکی قرمز)', color: '#DC2626', secondaryColor: '#EF4444' },
   { id: 'nordic', label: 'نوردیک استیل', color: '#57707A', secondaryColor: '#C5BAC4' },
   { id: 'glacier', label: 'اقیانوس و قطب', color: '#4A5C6A', secondaryColor: '#CCD0CF' },
   { id: 'amethyst', label: 'آمیتیست بنفش', color: '#8B7CC7', secondaryColor: '#5A3B8C' },
@@ -36,46 +62,16 @@ const PALETTES: { id: PaletteType; label: string; color: string; secondaryColor:
   { id: 'mint', label: 'فیروزه و نعنا', color: '#2DD4BF', secondaryColor: '#99F6E4' },
 ];
 
-/** استخراج متادیتا و ساخت آبجکت Song از یک فایل صوتی */
-/** استخراج متادیتا و ساخت آبجکت Song از یک فایل صوتی */
-const extractSongFromFile = async (file: File): Promise<Song | null> => {
-  try {
-    const metadata = await parseBlob(file);
-    let coverUrl = 'https://picsum.photos/seed/default/200';
+/** پیش‌فرض‌های والپیپر انتخابی و باکیفیت برای بک‌گراند */
+const WALLPAPER_PRESETS = [
+  { id: 'nebula', label: 'کیهان و ستاره‌ها', url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1600&auto=format&fit=crop&q=80' },
+  { id: 'mountain', label: 'کوهستان برفی', url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&auto=format&fit=crop&q=80' },
+  { id: 'cyber', label: 'افق نئونی شب', url: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80' },
+  { id: 'ocean', label: 'امواج اقیانوس', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&auto=format&fit=crop&q=80' },
+  { id: 'gradient', label: 'گرادیان ارغوانی', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80' },
+];
 
-    const picture = metadata.common.picture?.[0];
-    if (picture) {
-      const blob = new Blob([picture.data as any], { type: picture.format });
-      coverUrl = URL.createObjectURL(blob);
-    }
-
-    // خواندن مدت زمان واقعی آهنگ
-    let duration = metadata.format.duration || 0;
-    
-    // اگر متادیتا زمان نداشت، به صورت دستی محاسبه می‌کنیم
-    if (duration === 0) {
-      duration = await new Promise<number>((resolve) => {
-        const audio = new Audio(URL.createObjectURL(file));
-        audio.onloadedmetadata = () => resolve(audio.duration);
-        audio.onerror = () => resolve(0);
-      });
-    }
-
-    return {
-      id: crypto.randomUUID(),
-      name: metadata.common.title || file.name.replace('.mp3', ''),
-      artist: metadata.common.artist || 'Unknown',
-      cover: coverUrl,
-      fileUrl: URL.createObjectURL(file),
-      playCount: 0,
-      addedAt: Date.now(),
-      duration: duration, // <--- ذخیره مدت زمان
-    };
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
+/** پیش‌فرض‌های والپیپر انتخابی و باکیفیت برای بک‌گراند */
 
 /** یک ردیف تنظیمات: آیکون + عنوان سمت راست، محتوا سمت چپ */
 /** یک ردیف تنظیمات: آیکون + عنوان سمت راست، محتوا سمت چپ */
@@ -423,30 +419,56 @@ export const Settings = ({
   equalizerSettings,
   setEqualizerSettings,
   theme,
+  customBackground,
+  setCustomBackground,
+  customBgBlur = 10,
+  setCustomBgBlur,
+  customBgDim = 45,
+  setCustomBgDim,
+  glassCardCovers = true,
+  setGlassCardCovers,
 }: SettingsProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const wallpaperInputRef = useRef<HTMLInputElement>(null);
+  const { isInstallable, isInstalled, install } = usePWAInstall();
 
-  // پردازش فایل‌های انتخاب‌شده، استخراج متادیتا و افزودن به لیست آهنگ‌ها
+  const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result === 'string') {
+        setCustomBackground?.(result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // پردازش دسته‌ای و سریع فایل‌های انتخاب‌شده، استخراج متادیتا و افزودن به لیست آهنگ‌ها
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
     const files = input.files;
     if (!files || files.length === 0) return;
 
     setIsLoading(true);
-
-    const newSongs: Song[] = [];
-    for (const file of Array.from(files)) {
-      if (!file.type.includes('audio') && !file.name.endsWith('.mp3')) continue;
-      const song = await extractSongFromFile(file);
-      if (song) newSongs.push(song);
+    try {
+      const newSongs = await extractSongsBatched(Array.from(files));
+      if (newSongs.length > 0) {
+        setSongs((prev) => [...prev, ...newSongs]);
+      }
+    } finally {
+      setIsLoading(false);
+      // ریست input تا انتخاب مجدد همان فایل هم مجاز باشد
+      input.value = '';
     }
-
-    setSongs((prev) => [...prev, ...newSongs]);
-    setIsLoading(false);
-
-    // ریست input تا انتخاب مجدد همان فایل هم مجاز باشد
-    input.value = '';
   };
+
+  const folderUploadProps = {
+    webkitdirectory: '',
+    directory: '',
+  } as React.InputHTMLAttributes<HTMLInputElement>;
 
   return (
     <div
@@ -583,12 +605,330 @@ export const Settings = ({
               <PaletteSwatch
                 key={palette.id}
                 palette={palette}
-                selected={colorPalette === palette.id || (colorPalette === 'default' && palette.id === 'nordic')}
+                selected={colorPalette === palette.id || (colorPalette === 'default' && palette.id === 'classic-blue')}
                 onClick={() => setColorPalette(palette.id)}
                 theme={theme}
               />
             ))}
           </div>
+        </div>
+
+        {/* ردیف جلوه کاور شیشه‌ای روی کارت آهنگ‌ها (مطابق عکس ارسالی کاربر) */}
+        <div
+          style={{
+            padding: '20px 24px',
+            borderBottom: `1px solid ${theme.colors.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <Layers size={22} color={theme.colors.primary} />
+            <div>
+              <div
+                style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: theme.colors.textPrimary,
+                }}
+              >
+                {t.glassCardCovers || 'کاور شیشه‌ای روی کارت آهنگ‌ها'}
+              </div>
+              <div
+                style={{
+                  fontSize: '12.5px',
+                  color: theme.colors.textSecondary,
+                  marginTop: '3px',
+                }}
+              >
+                {t.glassCardCoversDesc || 'نمایش تصویر کاور هر آهنگ به صورت پس‌زمینه شیشه‌ای روی کارت آن'}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={glassCardCovers}
+            onClick={() => setGlassCardCovers?.(!glassCardCovers)}
+            style={{
+              position: 'relative',
+              direction: 'ltr',
+              width: '48px',
+              height: '28px',
+              borderRadius: '14px',
+              backgroundColor: glassCardCovers
+                ? theme.colors.primary
+                : theme.colors.border,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 0.25s ease',
+              padding: 0,
+              outline: 'none',
+              flexShrink: 0,
+            }}
+          >
+            <motion.span
+              initial={false}
+              animate={{
+                left: glassCardCovers ? 23 : 3,
+              }}
+              transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+              style={{
+                position: 'absolute',
+                top: '3px',
+                width: '22px',
+                height: '22px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.28)',
+              }}
+            />
+          </button>
+        </div>
+
+        {/* بخش پس‌زمینه دلخواه برنامه (Custom Wallpaper) */}
+        <div
+          style={{
+            padding: '20px 24px',
+            borderBottom: `1px solid ${theme.colors.border}`,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '14px',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <ImageIcon size={22} color={theme.colors.primary} />
+              <div>
+                <span
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: theme.colors.textPrimary,
+                    display: 'block',
+                  }}
+                >
+                  {t.customBackground || 'پس‌زمینه دلخواه برنامه'}
+                </span>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: theme.colors.textSecondary,
+                    marginTop: '2px',
+                    display: 'block',
+                  }}
+                >
+                  {t.selectWallpaperHint || 'تصویر دلخواه خود را برای بک‌گراند شیشه‌ای برنامه تنظیم کنید.'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {customBackground && (
+                <button
+                  type="button"
+                  onClick={() => setCustomBackground?.(null)}
+                  title={t.resetWallpaper || 'بازگشت به پیش‌فرض'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 12px',
+                    borderRadius: '12px',
+                    border: `1px solid ${theme.colors.border}`,
+                    backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                    color: theme.colors.textSecondary,
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  <RefreshCw size={14} />
+                  <span>{t.resetWallpaper || 'پیش‌فرض'}</span>
+                </button>
+              )}
+
+              <input
+                ref={wallpaperInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleWallpaperUpload}
+                style={{ display: 'none' }}
+              />
+
+              <button
+                type="button"
+                onClick={() => wallpaperInputRef.current?.click()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  backgroundColor: theme.colors.primary,
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  boxShadow: `0 3px 10px ${theme.colors.primary}44`,
+                }}
+              >
+                <Upload size={14} />
+                <span>{t.uploadWallpaper || 'انتخاب عکس از دستگاه'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* پیش‌فرض‌های برگزیده والپیپر */}
+          <div style={{ marginTop: '14px' }}>
+            <div
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: theme.colors.textSecondary,
+                marginBottom: '8px',
+              }}
+            >
+              {t.wallpaperPresets || 'پیش‌فرض‌های برگزیده'}:
+            </div>
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
+              {WALLPAPER_PRESETS.map((preset) => {
+                const isSelected = customBackground === preset.url;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setCustomBackground?.(preset.url)}
+                    style={{
+                      position: 'relative',
+                      width: '74px',
+                      height: '52px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      border: isSelected
+                        ? `2.5px solid ${theme.colors.primary}`
+                        : `1px solid ${theme.colors.border}`,
+                      boxShadow: isSelected ? `0 0 12px ${theme.colors.primary}66` : 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      flexShrink: 0,
+                      outline: 'none',
+                    }}
+                    title={preset.label}
+                  >
+                    <img
+                      src={preset.url}
+                      alt={preset.label}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                    {isSelected && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundColor: `${theme.colors.primary}40`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Check size={18} color="#fff" strokeWidth={3} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* کنترل‌های اسلایدر بلور و تیرگی در صورت فعال بودن والپیپر */}
+          {customBackground && (
+            <div
+              style={{
+                marginTop: '16px',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '14px',
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '12px',
+                    color: theme.colors.textSecondary,
+                    marginBottom: '6px',
+                  }}
+                >
+                  <span>{t.wallpaperBlur || 'میزان تاری (Blur)'}</span>
+                  <span style={{ fontWeight: 700, color: theme.colors.textPrimary }}>
+                    {customBgBlur}px
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={30}
+                  step={1}
+                  value={customBgBlur}
+                  onChange={(e) => setCustomBgBlur?.(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    accentColor: theme.colors.primary,
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '12px',
+                    color: theme.colors.textSecondary,
+                    marginBottom: '6px',
+                  }}
+                >
+                  <span>{t.wallpaperDim || 'تیرگی لایه محافظ'}</span>
+                  <span style={{ fontWeight: 700, color: theme.colors.textPrimary }}>
+                    {customBgDim}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={10}
+                  max={85}
+                  step={1}
+                  value={customBgDim}
+                  onChange={(e) => setCustomBgDim?.(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    accentColor: theme.colors.primary,
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* بخش اکولایزر ۵ بانده و تقویت باس */}
@@ -599,18 +939,49 @@ export const Settings = ({
           t={t}
         />
 
-        {/* ردیف بارگذاری فایل صوتی */}
+        {/* ردیف بارگذاری فایل یا پوشه صوتی */}
         <SettingRow
           icon={<Upload size={22} color={theme.colors.primary} />}
           label={t.library}
           theme={theme}
         >
-          <UploadButton
-            isLoading={isLoading}
-            label={isLoading ? t.loading : t.selectFiles}
-            onFilesSelected={handleFileUpload}
-            theme={theme}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                backgroundColor: theme.colors.background,
+                color: theme.colors.textPrimary,
+                border: `1px solid ${theme.colors.border}`,
+                padding: '8px 14px',
+                borderRadius: theme.radius.md,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                fontWeight: '600',
+                fontSize: '13.5px',
+                opacity: isLoading ? 0.6 : 1,
+              }}
+            >
+              <FolderUp size={16} color={theme.colors.primary} />
+              <span>{t.importFolder || 'وارد کردن پوشه'}</span>
+              <input
+                type="file"
+                accept="audio/*"
+                multiple
+                disabled={isLoading}
+                {...folderUploadProps}
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+              />
+            </label>
+
+            <UploadButton
+              isLoading={isLoading}
+              label={isLoading ? t.loading : t.selectFiles}
+              onFilesSelected={handleFileUpload}
+              theme={theme}
+            />
+          </div>
         </SettingRow>
 
         {/* ردیف نمایش تعداد آهنگ‌ها */}
@@ -618,7 +989,7 @@ export const Settings = ({
           icon={<Music size={22} color={theme.colors.primary} />}
           label={t.songCount}
           theme={theme}
-          isLast
+          isLast={!isInstallable || isInstalled}
         >
           <span
             style={{
@@ -630,6 +1001,37 @@ export const Settings = ({
             {songs.length}
           </span>
         </SettingRow>
+
+        {/* ردیف نصب برنامه روی دسکتاپ ویندوز (فقط در صورت پشتیبانی مرورگر و نصب‌نشدن نمایش داده می‌شود) */}
+        {isInstallable && !isInstalled && (
+          <SettingRow
+            icon={<Download size={22} color={theme.colors.primary} />}
+            label={t.desktopInstall || 'نصب نسخه دسکتاپ ویندوز'}
+            theme={theme}
+            isLast
+          >
+            <button
+              type="button"
+              onClick={install}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: theme.colors.primary,
+                color: '#ffffff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: theme.radius.md,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '14px',
+              }}
+            >
+              <Download size={16} />
+              <span>{t.installAppBtn || 'نصب به عنوان برنامه'}</span>
+            </button>
+          </SettingRow>
+        )}
       </div>
     </div>
   );

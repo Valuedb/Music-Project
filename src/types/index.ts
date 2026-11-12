@@ -1,3 +1,12 @@
+export type AppTab =
+  | 'home'
+  | 'allSongs'
+  | 'playlists'
+  | 'artists'
+  | 'albums'
+  | 'folders'
+  | 'settings';
+
 /** یک آهنگ در کتابخانه */
 export interface Song {
   id: string;
@@ -8,6 +17,7 @@ export interface Song {
   playCount: number;
   addedAt: number;
   album?: string;
+  folder?: string;
   year?: string;
   duration?: number;
   isFavorite?: boolean;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import type { Song, Playlist } from '../types';
 import { EditSongModal } from '../components/EditSongModal';
+import { CoverImage } from '../components/CoverImage';
+import { withAlpha } from '../utils/color';
 
 // ================= اینترفیس پراپ‌ها =================
 
@@ -37,6 +39,7 @@ interface AllSongsProps {
   title?: string;
   onBack?: () => void;
   emptyMessage?: string;
+  glassCardCovers?: boolean;
 }
 
 // ================= کامپوننت اصلی =================
@@ -59,6 +62,7 @@ export const AllSongs = ({
   title,
   onBack,
   emptyMessage,
+  glassCardCovers = true,
 }: AllSongsProps) => {
   // استیت‌های انتخاب
   const [selectedSongs, setSelectedSongs] = useState<string[]>([]);
@@ -87,6 +91,7 @@ export const AllSongs = ({
   const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [playlistTargetSongIds, setPlaylistTargetSongIds] = useState<string[]>([]);
   const [targetPlaylistId, setTargetPlaylistId] = useState<
     string | null
   >(null);
@@ -142,19 +147,22 @@ export const AllSongs = ({
 
   // ================= منطق داده‌ها =================
 
-  /** فیلتر و مرتب‌سازی آهنگ‌ها */
-  const filteredAndSortedSongs = songs
-    .filter(
-      (song) =>
-        song.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.artist.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === 'date') return b.addedAt - a.addedAt;
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'artist') return a.artist.localeCompare(b.artist);
-      return 0;
-    });
+  /** فیلتر و مرتب‌سازی آهنگ‌ها (مموایز شده برای جلوگیری از پردازش مجدد هنگام هاور ماوس) */
+  const filteredAndSortedSongs = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return songs
+      .filter(
+        (song) =>
+          song.name.toLowerCase().includes(q) ||
+          song.artist.toLowerCase().includes(q)
+      )
+      .sort((a, b) => {
+        if (sortBy === 'date') return b.addedAt - a.addedAt;
+        if (sortBy === 'name') return a.name.localeCompare(b.name);
+        if (sortBy === 'artist') return a.artist.localeCompare(b.artist);
+        return 0;
+      });
+  }, [songs, searchTerm, sortBy]);
 
   // ================= توابع کنترلی =================
 
@@ -226,40 +234,50 @@ export const AllSongs = ({
   };
 
   /** باز کردن مودال انتخاب پلی‌لیست */
-  const handleOpenPlaylistModal = (playlistId?: string) => {
-    if (playlistId) setSelectedSongs([playlistId]);
-    if (selectedSongs.length === 0 && !playlistId) {
-      alert('لطفا ابتدا یک آهنگ انتخاب کنید.');
-      return;
-    }
+  const handleOpenPlaylistModal = (songId?: string) => {
+    const ids = songId ? [songId] : selectedSongs;
+    if (ids.length === 0) return;
+    setPlaylistTargetSongIds(ids);
+    setTargetPlaylistId(null);
     setIsPlaylistModalOpen(true);
     setActiveMenuId(null);
     setIsTopMenuOpen(false);
   };
 
+  /** بستن مودال انتخاب پلی‌لیست */
+  const closePlaylistModal = () => {
+    setIsPlaylistModalOpen(false);
+    setTargetPlaylistId(null);
+    setPlaylistTargetSongIds([]);
+  };
+
   /** تایید نهایی افزودن به پلی‌لیست */
   const handleConfirmAddToPlaylist = () => {
     if (!targetPlaylistId) return;
-    const toAdd = songs.filter((s) => selectedSongs.includes(s.id));
+    const targetIds = playlistTargetSongIds.length > 0 ? playlistTargetSongIds : selectedSongs;
+    const toAdd = songs.filter((s) => targetIds.includes(s.id));
     toAdd.forEach((s) =>
       onAddSongToPlaylist(targetPlaylistId, s)
     );
-    setIsPlaylistModalOpen(false);
-    setTargetPlaylistId(null);
-    exitSelectMode();
+    closePlaylistModal();
+    if (isSelectMode) exitSelectMode();
   };
 
-  /** محاسبه جهت منو برای جلوگیری از خروج از صفحه */
+  /** محاسبه جهت منو با در نظر گرفتن ارتفاع نوار بالای صفحه و پلیر شناور پایین */
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     songId: string
   ) => {
     e.stopPropagation();
     const buttonRect = e.currentTarget.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - buttonRect.bottom;
-    setMenuDirection(spaceBelow < 250 ? 'up' : 'down');
+    const spaceBelow = window.innerHeight - buttonRect.bottom - 120;
+    const spaceAbove = buttonRect.top - 110;
+    setMenuDirection(spaceBelow < 260 && spaceAbove > spaceBelow ? 'up' : 'down');
     setActiveMenuId(activeMenuId === songId ? null : songId);
   };
+
+  const menuHoverBg = theme.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.07)';
+  const dangerHoverBg = withAlpha(theme.colors.danger || '#ff453a', 0.15);
 
   // ================= رندر =================
   return (
@@ -383,12 +401,10 @@ export const AllSongs = ({
                     onClick={() => handleOpenPlaylistModal()}
                     style={menuItemStyle(theme)}
                     onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        theme.colors.surface)
+                      (e.currentTarget.style.backgroundColor = menuHoverBg)
                     }
                     onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        'transparent')
+                      (e.currentTarget.style.backgroundColor = 'transparent')
                     }
                   >
                     <FolderPlus size={16} />{' '}
@@ -398,12 +414,10 @@ export const AllSongs = ({
                     onClick={handleBulkAddToQueue}
                     style={menuItemStyle(theme)}
                     onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        theme.colors.surface)
+                      (e.currentTarget.style.backgroundColor = menuHoverBg)
                     }
                     onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        'transparent')
+                      (e.currentTarget.style.backgroundColor = 'transparent')
                     }
                   >
                     <ListPlus size={16} /> {t.addToQueue}
@@ -415,12 +429,10 @@ export const AllSongs = ({
                       color: theme.colors.danger,
                     }}
                     onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        theme.colors.surface)
+                      (e.currentTarget.style.backgroundColor = dangerHoverBg)
                     }
                     onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        'transparent')
+                      (e.currentTarget.style.backgroundColor = 'transparent')
                     }
                   >
                     <Trash2 size={16} /> {t.deleteSong}
@@ -440,33 +452,35 @@ export const AllSongs = ({
               </button>
               {isSortMenuOpen && (
                 <div style={styles.dropdown(theme, '160px')}>
-                  {['date', 'name', 'artist'].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setSortBy(type as any);
-                        setIsSortMenuOpen(false);
-                      }}
-                      style={menuItemStyle(
-                        theme,
-                        sortBy === type
-                      )}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor =
-                          theme.colors.surface)
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor =
-                          'transparent')
-                      }
-                    >
-                      {type === 'date'
-                        ? t.sortDate
-                        : type === 'name'
-                        ? t.sortName
-                        : t.sortArtist}
-                    </button>
-                  ))}
+                  {['date', 'name', 'artist'].map((type) => {
+                    const isActive = sortBy === type;
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => {
+                          setSortBy(type as any);
+                          setIsSortMenuOpen(false);
+                        }}
+                        style={menuItemStyle(theme, isActive)}
+                        onMouseEnter={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.backgroundColor = menuHoverBg;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = isActive
+                            ? withAlpha(theme.colors.primary, 0.16)
+                            : 'transparent';
+                        }}
+                      >
+                        {type === 'date'
+                          ? t.sortDate
+                          : type === 'name'
+                          ? t.sortName
+                          : t.sortArtist}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -521,18 +535,62 @@ export const AllSongs = ({
                   theme,
                   isSelected,
                   isHovered,
-                  isMenuOpen
+                  isMenuOpen,
+                  isCurrentSong,
+                  glassCardCovers
                 )}
               >
+                {/* پس‌زمینه کاور شیشه‌ای روی کارت آهنگ (مشابه نمونه ارسالی کاربر) */}
+                {glassCardCovers && song.cover && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      zIndex: 0,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        backgroundImage: `url(${song.cover})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        filter: 'blur(12px) brightness(0.65) saturate(180%)',
+                        transform: 'scale(1.25)',
+                        opacity: theme.isDark ? 0.65 : 0.45,
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: theme.isDark
+                          ? 'linear-gradient(90deg, rgba(14, 11, 26, 0.72) 0%, rgba(22, 18, 40, 0.44) 50%, rgba(14, 11, 26, 0.72) 100%)'
+                          : 'linear-gradient(90deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.82) 100%)',
+                        backdropFilter: 'blur(6px)',
+                        WebkitBackdropFilter: 'blur(6px)',
+                      }}
+                    />
+                  </div>
+                )}
+
                 {isSelectMode && (
                   <div
                     onClick={(e) =>
                       toggleSelect(e, song.id)
                     }
-                    style={styles.checkbox(
-                      theme,
-                      isSelected
-                    )}
+                    style={{
+                      ...styles.checkbox(
+                        theme,
+                        isSelected
+                      ),
+                      position: 'relative',
+                      zIndex: 1,
+                    }}
                   >
                     {isSelected && (
                       <Check size={14} color="#fff" />
@@ -543,29 +601,30 @@ export const AllSongs = ({
                 <div
                   style={{
                     position: 'relative',
-                    width: '44px',
-                    height: '44px',
-                    minWidth: '44px',
-                    minHeight: '44px',
+                    width: '46px',
+                    height: '46px',
+                    minWidth: '46px',
+                    minHeight: '46px',
                     aspectRatio: '1 / 1',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     overflow: 'hidden',
                     flexShrink: 0,
-                    boxShadow: 'none',
-                    filter: 'none',
+                    zIndex: 1,
+                    border: '1px solid rgba(255, 255, 255, 0.22)',
+                    boxShadow: '0 3px 8px rgba(0, 0, 0, 0.25)',
                   }}
                 >
-                  <img
+                  <CoverImage
                     src={song.cover}
                     alt=""
+                    iconSize={20}
                     style={{
                       display: 'block',
                       width: '100%',
                       height: '100%',
                       aspectRatio: '1 / 1',
                       objectFit: 'cover',
-                      borderRadius: '8px',
-                      boxShadow: 'none',
+                      borderRadius: '10px',
                     }}
                   />
 
@@ -670,7 +729,7 @@ export const AllSongs = ({
                 </div>
 
                 <div
-                  style={{ flex: 1, overflow: 'hidden' }}
+                  style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}
                 >
                   <div
                     style={{
@@ -695,7 +754,7 @@ export const AllSongs = ({
                   </div>
                 </div>
 
-                <div style={styles.duration(theme)}>
+                <div style={{ ...styles.duration(theme), position: 'relative', zIndex: 1 }}>
                   {formatTime(song.duration || 0)}
                 </div>
 
@@ -732,27 +791,24 @@ export const AllSongs = ({
                       <div
                         style={{
                           ...styles.songMenu(theme),
-                          [menuDirection === 'up'
-                            ? 'bottom'
-                            : 'top']: '100%',
+                          right: 0,
+                          direction: t.deleteSong === 'حذف آهنگ' ? 'rtl' : 'ltr',
+                          [menuDirection === 'up' ? 'bottom' : 'top']: '100%',
+                          marginTop: menuDirection === 'down' ? '6px' : 0,
+                          marginBottom: menuDirection === 'up' ? '6px' : 0,
                         }}
                       >
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleSelectSingleSong(
-                              song.id
-                            );
+                            handleSelectSingleSong(song.id);
                           }}
                           style={menuItemStyle(theme)}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              theme.colors
-                                .surface)
+                            (e.currentTarget.style.backgroundColor = menuHoverBg)
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              'transparent')
+                            (e.currentTarget.style.backgroundColor = 'transparent')
                           }
                         >
                           <CheckSquare size={16} />{' '}
@@ -767,13 +823,10 @@ export const AllSongs = ({
                           }}
                           style={menuItemStyle(theme)}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              theme.colors
-                                .surface)
+                            (e.currentTarget.style.backgroundColor = menuHoverBg)
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              'transparent')
+                            (e.currentTarget.style.backgroundColor = 'transparent')
                           }
                         >
                           <Edit2 size={16} />{' '}
@@ -782,24 +835,18 @@ export const AllSongs = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenPlaylistModal(
-                              song.id
-                            );
+                            handleOpenPlaylistModal(song.id);
                           }}
                           style={menuItemStyle(theme)}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              theme.colors
-                                .surface)
+                            (e.currentTarget.style.backgroundColor = menuHoverBg)
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              'transparent')
+                            (e.currentTarget.style.backgroundColor = 'transparent')
                           }
                         >
                           <FolderPlus size={16} />{' '}
-                          {t.addToPlaylist ||
-                            'Add to Playlist'}
+                          {t.addToPlaylist || 'Add to Playlist'}
                         </button>
                         <button
                           onClick={(e) => {
@@ -809,13 +856,10 @@ export const AllSongs = ({
                           }}
                           style={menuItemStyle(theme)}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              theme.colors
-                                .surface)
+                            (e.currentTarget.style.backgroundColor = menuHoverBg)
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              'transparent')
+                            (e.currentTarget.style.backgroundColor = 'transparent')
                           }
                         >
                           <ListPlus size={16} />{' '}
@@ -830,12 +874,10 @@ export const AllSongs = ({
                             }}
                             style={menuItemStyle(theme)}
                             onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                theme.colors.surface)
+                              (e.currentTarget.style.backgroundColor = menuHoverBg)
                             }
                             onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                'transparent')
+                              (e.currentTarget.style.backgroundColor = 'transparent')
                             }
                           >
                             <Heart
@@ -853,22 +895,16 @@ export const AllSongs = ({
                           </button>
                         )}
                         <button
-                          onClick={(e) =>
-                            handleDelete(e, song.id)
-                          }
+                          onClick={(e) => handleDelete(e, song.id)}
                           style={{
                             ...menuItemStyle(theme),
-                            color:
-                              theme.colors.danger,
+                            color: theme.colors.danger,
                           }}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              theme.colors
-                                .surface)
+                            (e.currentTarget.style.backgroundColor = dangerHoverBg)
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              'transparent')
+                            (e.currentTarget.style.backgroundColor = 'transparent')
                           }
                         >
                           <Trash2 size={16} />{' '}
@@ -899,7 +935,7 @@ export const AllSongs = ({
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            onClick={() => setIsPlaylistModalOpen(false)}
+            onClick={closePlaylistModal}
             style={styles.modalOverlay}
           >
             <div
@@ -968,9 +1004,7 @@ export const AllSongs = ({
                 }}
               >
                 <button
-                  onClick={() =>
-                    setIsPlaylistModalOpen(false)
-                  }
+                  onClick={closePlaylistModal}
                   style={styles.modalBtn(theme, false)}
                 >
                   {t.cancel || 'لغو'}
@@ -1003,18 +1037,20 @@ const menuItemStyle = (
   active: boolean = false
 ) => ({
   width: '100%',
-  padding: '10px 14px',
+  padding: '9px 12px',
+  borderRadius: '8px',
   textAlign: 'start' as const,
   border: 'none',
-  background: active ? theme.colors.surface : 'none',
+  backgroundColor: active ? withAlpha(theme.colors.primary, 0.16) : 'transparent',
   color: active
     ? theme.colors.primary
     : theme.colors.textPrimary,
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: '9px',
   fontSize: '13px',
-  transition: 'background 0.2s',
+  fontWeight: active ? 600 : 500,
+  transition: 'background-color 0.12s ease',
   cursor: 'pointer',
 });
 
@@ -1033,6 +1069,8 @@ const styles = {
     justifyContent: 'space-between',
     marginBottom: 'clamp(16px, 3vw, 24px)',
     minHeight: '34px',
+    position: 'relative' as const,
+    zIndex: 20,
   },
   listContainer: {
     display: 'flex',
@@ -1060,17 +1098,20 @@ const styles = {
   }),
   dropdown: (
     theme: any,
-    minWidth: string = '180px'
+    minWidth: string = '185px'
   ) => ({
     position: 'absolute' as const,
     top: 'calc(100% + 6px)',
     insetInlineEnd: 0,
-    backgroundColor: theme.isDark ? 'rgba(20, 16, 38, 0.85)' : 'rgba(255, 255, 255, 0.88)',
+    padding: '5px',
+    backgroundColor: theme.isDark
+      ? withAlpha(theme.colors.surfaceSolid, 0.96)
+      : 'rgba(255, 255, 255, 0.96)',
     backdropFilter: 'blur(24px) saturate(180%)',
     WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.border}`,
-    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.35)',
+    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.42)',
     zIndex: 50,
     minWidth,
     overflow: 'hidden',
@@ -1079,34 +1120,44 @@ const styles = {
     theme: any,
     isSelected: boolean,
     isHovered: boolean,
-    isMenuOpen: boolean
+    isMenuOpen: boolean,
+    isCurrentSong?: boolean,
+    glassCardCovers?: boolean,
   ) => ({
     display: 'flex',
     alignItems: 'center',
     direction: 'ltr' as const,
     textAlign: 'left' as const,
-    gap: '12px',
-    padding: '6px 12px',
-    borderRadius: '12px',
+    gap: '14px',
+    padding: '8px 14px',
+    borderRadius: '16px',
     cursor: 'pointer',
     position: 'relative' as const,
-    transition: 'background-color 0.16s ease, border-color 0.16s ease',
+    transition: 'background-color 0.2s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1)',
     backdropFilter: 'blur(24px) saturate(180%)',
     WebkitBackdropFilter: 'blur(24px) saturate(180%)',
     backgroundColor: isSelected
-      ? `${theme.colors.primary}22`
+      ? `${theme.colors.primary}28`
+      : isCurrentSong
+      ? `${theme.colors.primary}20`
       : isHovered
-      ? (theme.isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.88)')
+      ? (theme.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.88)')
+      : glassCardCovers
+      ? (theme.isDark ? 'rgba(18, 14, 32, 0.45)' : 'rgba(255, 255, 255, 0.52)')
       : (theme.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.58)'),
     border: `1px solid ${
-      isSelected
+      isSelected || isCurrentSong
         ? theme.colors.primary
         : isHovered
-        ? (theme.isDark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(0, 0, 0, 0.14)')
-        : (theme.isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)')
+        ? (theme.isDark ? 'rgba(255, 255, 255, 0.26)' : 'rgba(0, 0, 0, 0.18)')
+        : (theme.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)')
     }`,
-    boxShadow: 'none',
-    zIndex: isMenuOpen ? 50 : 1,
+    boxShadow: isCurrentSong
+      ? `0 0 18px ${theme.colors.primary}40`
+      : isHovered
+      ? (theme.isDark ? '0 8px 24px rgba(0, 0, 0, 0.35)' : '0 4px 14px rgba(0, 0, 0, 0.08)')
+      : 'none',
+    zIndex: isMenuOpen ? 100 : isHovered ? 2 : 1,
   }),
   checkbox: (theme: any, isSelected: boolean) => ({
     width: '20px',
@@ -1126,22 +1177,23 @@ const styles = {
     cursor: 'pointer',
   }),
   coverImage: {
-    width: '44px',
-    height: '44px',
-    minWidth: '44px',
-    minHeight: '44px',
+    width: '46px',
+    height: '46px',
+    minWidth: '46px',
+    minHeight: '46px',
     aspectRatio: '1 / 1',
     display: 'block',
-    borderRadius: '8px',
+    borderRadius: '10px',
     objectFit: 'cover' as const,
-    boxShadow: 'none',
+    boxShadow: '0 3px 8px rgba(0, 0, 0, 0.25)',
+    border: '1px solid rgba(255, 255, 255, 0.22)',
     filter: 'none',
   },
   playOverlay: {
     position: 'absolute' as const,
     inset: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: '8px',
+    borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1153,18 +1205,20 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     textAlign: 'left' as const,
+    textShadow: theme.isDark ? '0 1px 4px rgba(0, 0, 0, 0.9)' : '0 1px 2px rgba(255, 255, 255, 0.8)',
     color: isSelected
       ? theme.colors.primary
       : theme.colors.textPrimary,
   }),
   songArtist: (theme: any) => ({
     fontSize: 'clamp(11px, 1.2vw, 13px)',
-    color: theme.colors.textSecondary,
+    color: theme.isDark ? 'rgba(255, 255, 255, 0.72)' : theme.colors.textSecondary,
     marginTop: '2px',
     whiteSpace: 'nowrap' as const,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     textAlign: 'left' as const,
+    textShadow: theme.isDark ? '0 1px 3px rgba(0, 0, 0, 0.8)' : 'none',
   }),
   duration: (theme: any) => ({
     fontSize: '12px',
@@ -1194,15 +1248,17 @@ const styles = {
   }),
   songMenu: (theme: any) => ({
     position: 'absolute' as const,
-    insetInlineEnd: 0,
-    backgroundColor: theme.isDark ? 'rgba(20, 16, 38, 0.88)' : 'rgba(255, 255, 255, 0.9)',
+    padding: '5px',
+    backgroundColor: theme.isDark
+      ? withAlpha(theme.colors.surfaceSolid, 0.96)
+      : 'rgba(255, 255, 255, 0.96)',
     backdropFilter: 'blur(26px) saturate(180%)',
     WebkitBackdropFilter: 'blur(26px) saturate(180%)',
     borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.border}`,
     boxShadow: theme.shadows.hard,
     zIndex: 999,
-    minWidth: '180px',
+    minWidth: '188px',
     overflow: 'hidden',
   }),
   modalOverlay: {
@@ -1219,7 +1275,9 @@ const styles = {
     boxSizing: 'border-box' as const,
   },
   modalBox: (theme: any) => ({
-    backgroundColor: theme.isDark ? 'rgba(24, 18, 44, 0.88)' : 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: theme.isDark
+      ? withAlpha(theme.colors.surfaceSolid, 0.94)
+      : 'rgba(255, 255, 255, 0.95)',
     backdropFilter: 'blur(28px) saturate(180%)',
     WebkitBackdropFilter: 'blur(28px) saturate(180%)',
     padding: 24,

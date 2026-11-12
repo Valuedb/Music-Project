@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Image as ImageIcon, RotateCcw } from 'lucide-react';
+import { Camera, RotateCcw } from 'lucide-react';
 import type { Song } from '../types';
+import { CoverImage } from './CoverImage';
 
 interface EditSongModalProps {
   isOpen: boolean;
@@ -26,15 +27,18 @@ export const EditSongModal: React.FC<EditSongModalProps> = ({
   t,
 }) => {
   const [formData, setFormData] = useState<Partial<Song>>({});
+  const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /** پر کردن مقادیر اولیه فرم هنگام باز شدن مودال */
   useEffect(() => {
     if (isOpen && song) {
+      setImageError(null);
       setFormData({
         name: song.name || '',
         artist: song.artist || '',
         album: song.album || '',
+        folder: song.folder || '',
         year: song.year || '',
         cover: song.cover || '',
       });
@@ -47,10 +51,11 @@ export const EditSongModal: React.FC<EditSongModalProps> = ({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert(t.imageFileError || 'لطفاً یک فایل تصویری معتبر انتخاب کنید.');
+      setImageError(t.imageFileError || 'لطفاً یک فایل تصویری معتبر انتخاب کنید.');
       return;
     }
 
+    setImageError(null);
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -75,6 +80,7 @@ export const EditSongModal: React.FC<EditSongModalProps> = ({
         name: (formData.name || '').trim() || song.name,
         artist: (formData.artist || '').trim() || song.artist,
         album: (formData.album || '').trim() || song.album,
+        folder: (formData.folder || '').trim() || undefined,
         year: (formData.year || '').trim() || song.year,
         cover: formData.cover || song.cover,
       };
@@ -187,15 +193,14 @@ export const EditSongModal: React.FC<EditSongModalProps> = ({
                   justifyContent: 'center',
                 }}
               >
-                {formData.cover ? (
-                  <img
-                    src={formData.cover}
-                    alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <ImageIcon size={48} color={theme.colors.textSecondary} />
-                )}
+                <CoverImage
+                  src={formData.cover}
+                  alt=""
+                  iconSize={42}
+                  iconColor={theme.colors.textSecondary}
+                  fallbackBg="rgba(0,0,0,0.2)"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
 
                 {/* لایه هاور دوربین */}
                 <div
@@ -264,6 +269,11 @@ export const EditSongModal: React.FC<EditSongModalProps> = ({
                   </button>
                 )}
               </div>
+              {imageError && (
+                <div style={{ fontSize: '12px', color: theme.colors.danger || '#ff453a', textAlign: 'center' }}>
+                  {imageError}
+                </div>
+              )}
             </div>
 
             {/* فرم فیلدهای متادیتا */}
@@ -297,6 +307,17 @@ export const EditSongModal: React.FC<EditSongModalProps> = ({
                   placeholder={t.album || 'آلبوم'}
                   value={formData.album || ''}
                   onChange={(e) => setFormData({ ...formData, album: e.target.value })}
+                  style={inputStyle(theme)}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle(theme)}>{t.folder || 'فولدر'}</label>
+                <input
+                  type="text"
+                  placeholder={t.folderPlaceholder || 'مثال: راک / منتخب'}
+                  value={formData.folder || ''}
+                  onChange={(e) => setFormData({ ...formData, folder: e.target.value })}
                   style={inputStyle(theme)}
                 />
               </div>

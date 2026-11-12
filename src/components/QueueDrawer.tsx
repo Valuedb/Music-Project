@@ -1,21 +1,19 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Play, 
   Trash2, 
   Shuffle, 
-  ArrowUp, 
-  ArrowDown, 
   X, 
   Search, 
-  BookmarkPlus, 
   GripVertical, 
   ListMusic, 
-  CornerDownLeft,
-  Check,
-  Heart
+  Volume2,
+  BookmarkPlus,
+  Check
 } from 'lucide-react';
 import type { Song } from '../types';
+import { withAlpha } from '../utils/color';
+import { CoverImage } from './CoverImage';
 
 interface QueueDrawerProps {
   isOpen: boolean;
@@ -28,9 +26,7 @@ interface QueueDrawerProps {
   onReorderQueue: (fromIndex: number, toIndex: number) => void;
   onClearQueue: () => void;
   onShuffleQueue: () => void;
-  onPlayNextInQueue: (index: number) => void;
   onCreatePlaylist?: (name: string, songs: Song[]) => void;
-  onToggleFavorite?: (id: string) => void;
   theme: any;
   t: any;
   isMobile: boolean;
@@ -47,9 +43,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
   onReorderQueue,
   onClearQueue,
   onShuffleQueue,
-  onPlayNextInQueue,
   onCreatePlaylist,
-  onToggleFavorite,
   theme,
   t,
   isMobile,
@@ -62,13 +56,24 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const currentSongRowRef = useRef<HTMLDivElement>(null);
 
-  // بستن منو با کلیک بیرون (در دسکتاپ)
+  const handleSavePlaylist = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = playlistName.trim();
+    if (!trimmed || displayQueue.length === 0 || !onCreatePlaylist) return;
+    onCreatePlaylist(trimmed, displayQueue);
+    setIsSavingPlaylist(false);
+    setPlaylistName('');
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 2500);
+  };
+
+  // بستن منو با کلیک بیرون در حالت دسکتاپ
   useEffect(() => {
     if (!isOpen || isMobile) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        // اگر روی دکمه صف کلیک شده باشه نادیده بگیر
         const target = e.target as HTMLElement;
         if (target.closest('[data-queue-toggle]')) return;
         onClose();
@@ -78,17 +83,45 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, isMobile, onClose]);
 
-  // ریست پیام تایید حذف بعد از ۳ ثانیه
+  // زمان‌سنج ریست تأیید پاک‌کردن صف
   useEffect(() => {
     if (confirmClear) {
-      const timer = setTimeout(() => setConfirmClear(false), 4000);
+      const timer = setTimeout(() => setConfirmClear(false), 3500);
       return () => clearTimeout(timer);
     }
   }, [confirmClear]);
 
-  // محاسبه مجموع زمان صف
+  // ساخت لیست منظم صف پخش (اگر آهنگ جاری در لیست نباشد، در ابتدای آن قرار می‌گیرد)
+  const displayQueue = useMemo(() => {
+    const list = [...queue];
+    if (currentSong && !list.some((s) => s.id === currentSong.id)) {
+      list.unshift(currentSong);
+    }
+    return list;
+  }, [queue, currentSong]);
+
+  // پیدا کردن ایندکس آهنگ در حال پخش در لیست صف
+  const currentIndex = useMemo(() => {
+    if (!currentSong) return -1;
+    return displayQueue.findIndex((s) => s.id === currentSong.id);
+  }, [displayQueue, currentSong]);
+
+  // اسکرول خودکار و نرم به موقعیت آهنگ در حال پخش هنگام باز شدن پنل
+  useEffect(() => {
+    if (isOpen && currentSongRowRef.current) {
+      const timer = setTimeout(() => {
+        currentSongRowRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 160);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, currentIndex]);
+
+  // محاسبه مجموع زمان کل صف
   const totalDurationFormatted = useMemo(() => {
-    const totalSecs = queue.reduce((acc, song) => acc + (song.duration || 0), 0);
+    const totalSecs = displayQueue.reduce((acc, song) => acc + (song.duration || 0), 0);
     if (!totalSecs) return null;
     const mins = Math.floor(totalSecs / 60);
     const secs = Math.floor(totalSecs % 60);
@@ -98,7 +131,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
       return `${hours}h ${remMins}m`;
     }
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  }, [queue]);
+  }, [displayQueue]);
 
   const formatDuration = (seconds?: number) => {
     if (!seconds || isNaN(seconds)) return '--:--';
@@ -107,38 +140,26 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // لیست فیلتر شده با حفظ اندیس‌های اصلی
-  const indexedQueue = useMemo(() => {
-    return queue.map((song, originalIndex) => ({ song, originalIndex }));
-  }, [queue]);
+  // لیست با نگه‌داشتن ایندکس اصلی
+  const indexedList = useMemo(() => {
+    return displayQueue.map((song, originalIndex) => ({ song, originalIndex }));
+  }, [displayQueue]);
 
-  const filteredQueue = useMemo(() => {
-    if (!filterQuery.trim()) return indexedQueue;
+  // فیلتر جستجو (در صورت تایپ)
+  const filteredList = useMemo(() => {
+    if (!filterQuery.trim()) return indexedList;
     const q = filterQuery.toLowerCase();
-    return indexedQueue.filter(
+    return indexedList.filter(
       ({ song }) =>
         song.name.toLowerCase().includes(q) ||
-        song.artist.toLowerCase().includes(q) ||
-        (song.album && song.album.toLowerCase().includes(q))
+        song.artist.toLowerCase().includes(q)
     );
-  }, [indexedQueue, filterQuery]);
+  }, [indexedList, filterQuery]);
 
-  const handleSavePlaylist = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = playlistName.trim();
-    if (!trimmed || queue.length === 0 || !onCreatePlaylist) return;
-    
-    // آهنگ فعلی به همراه کل صف
-    const songsToSave = currentSong ? [currentSong, ...queue] : [...queue];
-    onCreatePlaylist(trimmed, songsToSave);
-    setIsSavingPlaylist(false);
-    setPlaylistName('');
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
-  };
-
+  // رویدادهای درگ و دراپ
   const handleDragStart = (e: React.DragEvent, originalIndex: number) => {
     e.dataTransfer.setData('text/plain', originalIndex.toString());
+    e.dataTransfer.effectAllowed = 'move';
     setDraggedIndex(originalIndex);
   };
 
@@ -165,17 +186,18 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const glassBg = theme.isDark
-    ? 'rgba(22, 20, 32, 0.94)'
-    : 'rgba(255, 255, 255, 0.94)';
-  const borderCol = theme.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)';
-  const itemBg = theme.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)';
-  const itemHoverBg = theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
+  // استفاده دقیق و مستقیم از متریال و پالت تم
+  const primaryColor = theme.colors.primary || '#0a84ff';
   const textPrimary = theme.colors.textPrimary || (theme.isDark ? '#f4f4f5' : '#18181b');
   const textSecondary = theme.colors.textSecondary || (theme.isDark ? '#a1a1aa' : '#71717a');
-  const accentColor = theme.colors.primary || '#0a84ff';
+  const borderColor = theme.colors.border || (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)');
+  
+  // پس‌زمینه و سایه شیشه‌ای بر اساس تم و پالت فعال (هماهنگ با نوار پلیر)
+  const panelBackground = theme.glass?.bar?.background || (theme.isDark ? 'rgba(24, 24, 28, 0.95)' : 'rgba(255, 255, 255, 0.95)');
+  const panelBorder = theme.glass?.bar?.border || `1px solid ${borderColor}`;
+  const panelShadow = theme.glass?.bar?.boxShadow || (theme.isDark ? '0 20px 48px rgba(0,0,0,0.5)' : '0 16px 40px rgba(0,0,0,0.12)');
 
-  // لایه بک‌دراپ برای حالت موبایل
+  // لایه تاریک بک‌دراپ برای موبایل
   const backdrop = isMobile && (
     <motion.div
       key="queue-backdrop"
@@ -186,9 +208,9 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
         zIndex: 99998,
       }}
     />
@@ -201,23 +223,21 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
       initial={isMobile ? { y: '100%' } : { opacity: 0, y: 16, scale: 0.96 }}
       animate={isMobile ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }}
       exit={isMobile ? { y: '100%' } : { opacity: 0, y: 16, scale: 0.96 }}
-      transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+      transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       style={{
         position: 'fixed',
         bottom: isMobile ? 0 : '86px',
         right: isMobile ? 0 : '24px',
         left: isMobile ? 0 : 'auto',
-        width: isMobile ? '100%' : '410px',
-        maxHeight: isMobile ? '86vh' : 'calc(100vh - 110px)',
-        height: isMobile ? '86vh' : '580px',
-        backgroundColor: glassBg,
+        width: isMobile ? '100%' : '390px',
+        maxHeight: isMobile ? '82vh' : 'calc(100vh - 110px)',
+        height: isMobile ? '82vh' : '560px',
+        background: panelBackground,
         backdropFilter: 'blur(30px) saturate(180%)',
         WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-        borderRadius: isMobile ? '24px 24px 0 0' : '22px',
-        border: `1px solid ${borderCol}`,
-        boxShadow: isMobile
-          ? '0 -16px 48px rgba(0, 0, 0, 0.45)'
-          : '0 24px 64px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+        borderRadius: isMobile ? '24px 24px 0 0' : '24px',
+        border: panelBorder,
+        boxShadow: panelShadow,
         display: 'flex',
         flexDirection: 'column',
         zIndex: 99999,
@@ -226,30 +246,30 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
       }}
     >
       <style>{`
-        .queue-row:hover .play-overlay { opacity: 1 !important; }
-        .queue-row:hover { background-color: ${itemHoverBg} !important; }
-        .queue-row:active { transform: scale(0.99); }
+        .q-row { transition: background-color 0.15s ease, border-color 0.15s ease; }
+        .q-row:hover .q-del-btn { opacity: 1 !important; }
+        .q-row:hover { background-color: ${withAlpha(primaryColor, theme.isDark ? 0.08 : 0.05)} !important; }
       `}</style>
 
-      {/* دستگیره سوایپ برای موبایل */}
+      {/* دستگیره بالا مخصوص موبایل */}
       {isMobile && (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '10px', paddingBottom: '4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '10px', paddingBottom: '2px' }}>
           <div
             style={{
-              width: '36px',
+              width: '38px',
               height: '4px',
               borderRadius: '2px',
-              backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)',
+              backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.28)' : 'rgba(0, 0, 0, 0.2)',
             }}
           />
         </div>
       )}
 
-      {/* هدر صف */}
+      {/* هدر ساده و تمیز صف پخش */}
       <div
         style={{
-          padding: '16px 20px 14px',
-          borderBottom: `1px solid ${borderCol}`,
+          padding: '16px 20px 12px',
+          borderBottom: `1px solid ${borderColor}`,
           display: 'flex',
           flexDirection: 'column',
           gap: '10px',
@@ -263,24 +283,32 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                backgroundColor: withAlpha(primaryColor, 0.14),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: accentColor,
+                color: primaryColor,
               }}
             >
               <ListMusic size={18} />
             </div>
             <div>
-              <div style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+              <div style={{ fontSize: '15.5px', fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
                 {t.queueTitle || t.queue || 'صف پخش'}
               </div>
-              <div style={{ fontSize: '12px', color: textSecondary, marginTop: '2px' }}>
-                <span>{queue.length} {t.totalTracks || 'آهنگ'}</span>
+              <div style={{ fontSize: '12px', color: textSecondary, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {currentIndex !== -1 ? (
+                  <span>
+                    {t.close === 'Close'
+                      ? `Track ${currentIndex + 1} of ${displayQueue.length}`
+                      : `آهنگ ${currentIndex + 1} از ${displayQueue.length}`}
+                  </span>
+                ) : (
+                  <span>{displayQueue.length} {t.totalTracks || 'آهنگ'}</span>
+                )}
                 {totalDurationFormatted && (
                   <>
-                    <span style={{ margin: '0 6px', opacity: 0.6 }}>·</span>
+                    <span style={{ opacity: 0.5 }}>·</span>
                     <span style={{ fontVariantNumeric: 'tabular-nums' }}>{totalDurationFormatted}</span>
                   </>
                 )}
@@ -288,9 +316,9 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
             </div>
           </div>
 
-          {/* کلیدهای کنترلی سریع در هدر */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {queue.length > 1 && (
+          {/* ابزارهای هدر: بر زدن، پاک‌کردن، بستن */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {displayQueue.length > 2 && (
               <button
                 onClick={onShuffleQueue}
                 title={t.shuffleQueue || 'بر زدن صف'}
@@ -304,11 +332,11 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.18s ease',
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = accentColor;
-                  e.currentTarget.style.backgroundColor = itemHoverBg;
+                  e.currentTarget.style.color = primaryColor;
+                  e.currentTarget.style.backgroundColor = withAlpha(primaryColor, 0.1);
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = textSecondary;
@@ -319,31 +347,35 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
               </button>
             )}
 
-            {onCreatePlaylist && queue.length > 0 && (
+            {onCreatePlaylist && displayQueue.length > 0 && (
               <button
                 onClick={() => {
                   setIsSavingPlaylist(!isSavingPlaylist);
                   if (!playlistName) {
-                    setPlaylistName(`صف پخش - ${new Date().toLocaleDateString('fa-IR')}`);
+                    setPlaylistName(
+                      t.close === 'Close'
+                        ? `Queue - ${new Date().toLocaleDateString('en-US')}`
+                        : `صف پخش - ${new Date().toLocaleDateString('fa-IR')}`
+                    );
                   }
                 }}
                 title={t.saveQueueAsPlaylist || 'ذخیره به عنوان پلی‌لیست'}
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: isSavingPlaylist ? accentColor : textSecondary,
+                  color: isSavingPlaylist ? primaryColor : textSecondary,
                   cursor: 'pointer',
                   padding: '7px',
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.18s ease',
-                  backgroundColor: isSavingPlaylist ? itemHoverBg : 'transparent',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: isSavingPlaylist ? withAlpha(primaryColor, 0.12) : 'transparent',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = accentColor;
-                  e.currentTarget.style.backgroundColor = itemHoverBg;
+                  e.currentTarget.style.color = primaryColor;
+                  e.currentTarget.style.backgroundColor = withAlpha(primaryColor, 0.1);
                 }}
                 onMouseLeave={(e) => {
                   if (!isSavingPlaylist) {
@@ -356,7 +388,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
               </button>
             )}
 
-            {queue.length > 0 && (
+            {displayQueue.length > 0 && (
               <button
                 onClick={() => {
                   if (confirmClear) {
@@ -379,11 +411,11 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                   gap: '4px',
                   fontSize: '11px',
                   fontWeight: 600,
-                  transition: 'all 0.18s ease',
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = '#ef4444';
-                  if (!confirmClear) e.currentTarget.style.backgroundColor = itemHoverBg;
+                  if (!confirmClear) e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
                 }}
                 onMouseLeave={(e) => {
                   if (!confirmClear) {
@@ -392,8 +424,8 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                   }
                 }}
               >
-                <Trash2 size={confirmClear ? 14 : 17} />
-                {confirmClear && <span>{t.clearQueue || 'پاک کن'}</span>}
+                <Trash2 size={confirmClear ? 13 : 17} />
+                {confirmClear && <span>{t.clearQueue || 'حذف'}</span>}
               </button>
             )}
 
@@ -410,11 +442,11 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.18s ease',
+                transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = textPrimary;
-                e.currentTarget.style.backgroundColor = itemHoverBg;
+                e.currentTarget.style.backgroundColor = withAlpha(textPrimary, 0.08);
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.color = textSecondary;
@@ -440,8 +472,8 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                 alignItems: 'center',
                 padding: '8px 10px',
                 borderRadius: '12px',
-                backgroundColor: itemBg,
-                border: `1px solid ${borderCol}`,
+                backgroundColor: withAlpha(textPrimary, theme.isDark ? 0.05 : 0.03),
+                border: `1px solid ${borderColor}`,
                 overflow: 'hidden',
               }}
             >
@@ -456,7 +488,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
-                  fontSize: '13px',
+                  fontSize: '12.5px',
                   color: textPrimary,
                 }}
               />
@@ -464,12 +496,12 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                 type="submit"
                 disabled={!playlistName.trim()}
                 style={{
-                  backgroundColor: accentColor,
+                  backgroundColor: primaryColor,
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '7px',
                   padding: '5px 12px',
-                  fontSize: '12px',
+                  fontSize: '11.5px',
                   fontWeight: 600,
                   cursor: playlistName.trim() ? 'pointer' : 'not-allowed',
                   opacity: playlistName.trim() ? 1 : 0.5,
@@ -488,7 +520,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
                   background: 'transparent',
                   border: 'none',
                   color: textSecondary,
-                  fontSize: '12px',
+                  fontSize: '11.5px',
                   cursor: 'pointer',
                   padding: '5px 8px',
                 }}
@@ -523,8 +555,8 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
           )}
         </AnimatePresence>
 
-        {/* جستجو در صف (اگر بیش از ۳ آهنگ باشد) */}
-        {queue.length > 3 && (
+        {/* فیلتر جستجو تنها در لیست‌های بزرگ (> ۵ قطعه) */}
+        {displayQueue.length > 5 && (
           <div
             style={{
               display: 'flex',
@@ -532,8 +564,8 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
               gap: '8px',
               padding: '6px 10px',
               borderRadius: '10px',
-              backgroundColor: itemBg,
-              border: `1px solid ${borderCol}`,
+              backgroundColor: withAlpha(textPrimary, theme.isDark ? 0.05 : 0.03),
+              border: `1px solid ${borderColor}`,
             }}
           >
             <Search size={14} style={{ color: textSecondary, flexShrink: 0 }} />
@@ -571,470 +603,296 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
         )}
       </div>
 
-      {/* بخش اسکرول‌شونده محتوای صف */}
+      {/* محتوای صف پخش: لیست ترتیبی با هایلایت آهنگ جاری در جایگاه واقعی خود */}
       <div
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '12px 16px',
+          padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
+          gap: '4px',
         }}
       >
-        {/* ۱. آهنگ در حال پخش (Now Playing) */}
-        {currentSong && (
-          <div>
+        {displayQueue.length === 0 ? (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '48px 20px',
+              textAlign: 'center',
+              borderRadius: '16px',
+              border: `1px dashed ${borderColor}`,
+              backgroundColor: withAlpha(textPrimary, 0.02),
+              gap: '10px',
+              marginTop: '10px',
+            }}
+          >
             <div
               style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: textSecondary,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                marginBottom: '8px',
-                padding: '0 4px',
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                backgroundColor: withAlpha(primaryColor, 0.12),
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
+                color: primaryColor,
               }}
             >
-              <span>{t.nowPlaying || 'در حال پخش'}</span>
-              {isPlaying && (
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '12px' }}>
-                  <motion.div
-                    animate={{ height: ['4px', '12px', '6px', '11px', '4px'] }}
-                    transition={{ repeat: Infinity, duration: 0.8, ease: 'easeInOut' }}
-                    style={{ width: '2px', backgroundColor: accentColor, borderRadius: '1px' }}
-                  />
-                  <motion.div
-                    animate={{ height: ['10px', '4px', '12px', '5px', '10px'] }}
-                    transition={{ repeat: Infinity, duration: 0.9, ease: 'easeInOut' }}
-                    style={{ width: '2px', backgroundColor: accentColor, borderRadius: '1px' }}
-                  />
-                  <motion.div
-                    animate={{ height: ['6px', '11px', '4px', '12px', '6px'] }}
-                    transition={{ repeat: Infinity, duration: 0.7, ease: 'easeInOut' }}
-                    style={{ width: '2px', backgroundColor: accentColor, borderRadius: '1px' }}
-                  />
-                </div>
-              )}
+              <ListMusic size={22} />
             </div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: textPrimary }}>
+              {t.queueEmpty || 'صف پخش خالی است'}
+            </div>
+            <div style={{ fontSize: '12px', color: textSecondary, maxWidth: '240px', lineHeight: 1.4 }}>
+              {t.queueEmptyHint || 'آهنگ‌ها را برای پخش پیوسته به صف اضافه کنید.'}
+            </div>
+          </div>
+        ) : filteredList.length === 0 ? (
+          <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: '13px', color: textSecondary }}>
+            {t.noResults || 'هیچ نتیجه‌ای یافت نشد'}
+          </div>
+        ) : (
+          filteredList.map(({ song, originalIndex }) => {
+            const isCurrent = currentSong?.id === song.id;
+            const isPast = currentIndex !== -1 && originalIndex < currentIndex;
+            const isItemDragged = draggedIndex === originalIndex;
+            const isOver = dragOverIndex === originalIndex;
 
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '10px 12px',
-                borderRadius: '14px',
-                backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-                border: `1px solid ${accentColor}44`,
-                boxShadow: `0 4px 16px ${accentColor}18`,
-              }}
-            >
-              <div style={{ position: 'relative', width: '44px', height: '44px', flexShrink: 0 }}>
-                <img
-                  src={currentSong.cover}
-                  alt=""
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '8px',
-                    objectFit: 'cover',
-                  }}
-                />
-                {isPlaying && (
+            return (
+              <div
+                key={`${song.id}-${originalIndex}`}
+                ref={isCurrent ? currentSongRowRef : undefined}
+                className="q-row"
+                draggable
+                onDragStart={(e) => handleDragStart(e, originalIndex)}
+                onDragOver={(e) => handleDragOver(e, originalIndex)}
+                onDrop={(e) => handleDrop(e, originalIndex)}
+                onDragEnd={handleDragEnd}
+                onClick={() => onPlaySong(originalIndex)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 10px',
+                  borderRadius: '12px',
+                  backgroundColor: isCurrent
+                    ? withAlpha(primaryColor, theme.isDark ? 0.2 : 0.12)
+                    : isOver
+                    ? withAlpha(primaryColor, 0.15)
+                    : withAlpha(textPrimary, theme.isDark ? 0.04 : 0.025),
+                  border: isCurrent
+                    ? `1px solid ${withAlpha(primaryColor, theme.isDark ? 0.45 : 0.32)}`
+                    : isOver
+                    ? `1px solid ${primaryColor}`
+                    : `1px solid ${withAlpha(textPrimary, 0.06)}`,
+                  boxShadow: isCurrent ? `0 4px 16px ${withAlpha(primaryColor, 0.14)}` : 'none',
+                  opacity: isItemDragged ? 0.35 : isPast ? 0.65 : 1,
+                  transform: isOver ? 'scale(1.01)' : 'scale(1)',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                {/* خط راهنمای درگ زمانی که آیتم روی این سطر قرار دارد */}
+                {isOver && draggedIndex !== null && (
                   <div
                     style={{
                       position: 'absolute',
-                      inset: 0,
-                      backgroundColor: 'rgba(0, 0, 0, 0.35)',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '2px',
+                      backgroundColor: primaryColor,
+                      boxShadow: `0 0 8px ${primaryColor}`,
+                      borderRadius: '1px',
                     }}
-                  >
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: accentColor }} />
-                  </div>
+                  />
                 )}
-              </div>
 
-              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* شماره ردیف یا انیمیشن اکولایزر برای آهنگ جاری */}
                 <div
                   style={{
-                    fontSize: '13.5px',
-                    fontWeight: 700,
-                    color: accentColor,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    width: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                   }}
                 >
-                  {currentSong.name}
-                </div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: textSecondary,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    marginTop: '2px',
-                  }}
-                >
-                  {currentSong.artist}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {onToggleFavorite && (
-                  <button
-                    onClick={() => onToggleFavorite(currentSong.id)}
-                    title={currentSong.isFavorite ? t.removeFromFavorites : t.addToFavorites}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: currentSong.isFavorite ? '#ef4444' : textSecondary,
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Heart size={16} fill={currentSong.isFavorite ? '#ef4444' : 'none'} />
-                  </button>
-                )}
-                <span
-                  style={{
-                    fontSize: '11px',
-                    color: textSecondary,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {formatDuration(currentSong.duration)}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ۲. آهنگ‌های در ادامه (Up Next) */}
-        <div>
-          <div
-            style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              color: textSecondary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              marginBottom: '8px',
-              padding: '0 4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>
-              {t.upNext || 'در ادامه'} ({filteredQueue.length})
-            </span>
-            {queue.length > 1 && (
-              <span style={{ fontSize: '10px', fontWeight: 500, color: textSecondary, opacity: 0.7 }}>
-                {isMobile ? 'از دکمه‌ها برای جابه‌جایی استفاده کنید' : 'بکشید و رها کنید برای جابه‌جایی'}
-              </span>
-            )}
-          </div>
-
-          {queue.length === 0 ? (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '36px 20px',
-                textAlign: 'center',
-                borderRadius: '16px',
-                border: `1px dashed ${borderCol}`,
-                backgroundColor: itemBg,
-                gap: '10px',
-                marginTop: '4px',
-              }}
-            >
-              <div
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  backgroundColor: theme.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: textSecondary,
-                }}
-              >
-                <ListMusic size={24} />
-              </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: textPrimary }}>
-                {t.queueEmpty || 'صف پخش خالی است'}
-              </div>
-              <div style={{ fontSize: '12px', color: textSecondary, maxWidth: '240px', lineHeight: 1.4 }}>
-                {t.queueEmptyHint || 'از منوی هر آهنگ، «افزودن به صف» را بزنید تا پشت سر هم پخش شوند.'}
-              </div>
-            </div>
-          ) : filteredQueue.length === 0 ? (
-            <div
-              style={{
-                padding: '24px 16px',
-                textAlign: 'center',
-                fontSize: '13px',
-                color: textSecondary,
-              }}
-            >
-              {t.noResults || 'هیچ نتیجه‌ای یافت نشد'}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {filteredQueue.map(({ song, originalIndex }) => {
-                const isItemDragged = draggedIndex === originalIndex;
-                const isOver = dragOverIndex === originalIndex;
-
-                return (
-                  <div
-                    key={`${song.id}-${originalIndex}`}
-                    className="queue-row"
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, originalIndex)}
-                    onDragOver={(e) => handleDragOver(e, originalIndex)}
-                    onDrop={(e) => handleDrop(e, originalIndex)}
-                    onDragEnd={handleDragEnd}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '8px 10px',
-                      borderRadius: '12px',
-                      backgroundColor: isOver
-                        ? accentColor + '22'
-                        : itemBg,
-                      border: isOver
-                        ? `1px solid ${accentColor}`
-                        : `1px solid ${borderCol}`,
-                      opacity: isItemDragged ? 0.45 : 1,
-                      transform: isOver ? 'scale(1.01)' : 'scale(1)',
-                      transition: 'all 0.16s ease',
-                      position: 'relative',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => onPlaySong(originalIndex)}
-                  >
-                    {/* آیکون دستگیره درگ */}
-                    <div
-                      style={{
-                        color: textSecondary,
-                        cursor: 'grab',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: 0.6,
-                        flexShrink: 0,
-                      }}
-                      title="بکشید برای جابه‌جایی"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <GripVertical size={16} />
-                    </div>
-
-                    {/* کاور با هاور پخش */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: '38px',
-                        height: '38px',
-                        flexShrink: 0,
-                        borderRadius: '7px',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <img
-                        src={song.cover}
-                        alt=""
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                      <div
-                        className="play-overlay"
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          opacity: 0,
-                          transition: 'opacity 0.16s ease',
-                          color: '#ffffff',
-                        }}
-                      >
-                        <Play size={14} fill="#ffffff" />
+                  {isCurrent ? (
+                    isPlaying ? (
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '14px' }}>
+                        <motion.div
+                          animate={{ height: ['4px', '14px', '6px', '12px', '4px'] }}
+                          transition={{ repeat: Infinity, duration: 0.85, ease: 'easeInOut' }}
+                          style={{ width: '2.5px', backgroundColor: primaryColor, borderRadius: '1px' }}
+                        />
+                        <motion.div
+                          animate={{ height: ['12px', '5px', '14px', '6px', '12px'] }}
+                          transition={{ repeat: Infinity, duration: 0.95, ease: 'easeInOut' }}
+                          style={{ width: '2.5px', backgroundColor: primaryColor, borderRadius: '1px' }}
+                        />
+                        <motion.div
+                          animate={{ height: ['7px', '13px', '4px', '14px', '7px'] }}
+                          transition={{ repeat: Infinity, duration: 0.75, ease: 'easeInOut' }}
+                          style={{ width: '2.5px', backgroundColor: primaryColor, borderRadius: '1px' }}
+                        />
                       </div>
-                    </div>
-
-                    {/* عنوان و خواننده */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          color: textPrimary,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {song.name}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '11.5px',
-                          color: textSecondary,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          marginTop: '1px',
-                        }}
-                      >
-                        {song.artist}
-                      </div>
-                    </div>
-
-                    {/* زمان آهنگ */}
+                    ) : (
+                      <Volume2 size={15} style={{ color: primaryColor }} />
+                    )
+                  ) : (
                     <span
                       style={{
                         fontSize: '11px',
                         color: textSecondary,
                         fontVariantNumeric: 'tabular-nums',
-                        flexShrink: 0,
+                        fontWeight: 500,
                       }}
                     >
-                      {formatDuration(song.duration)}
+                      {originalIndex + 1}
                     </span>
+                  )}
+                </div>
 
-                    {/* نوار عملیات آیتم */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                        flexShrink: 0,
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* انتقال به بالا */}
-                      {originalIndex > 0 && (
-                        <button
-                          onClick={() => onReorderQueue(originalIndex, originalIndex - 1)}
-                          title={t.moveUp || 'انتقال به بالا'}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: textSecondary,
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'color 0.16s ease',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = textPrimary)}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = textSecondary)}
-                        >
-                          <ArrowUp size={14} />
-                        </button>
-                      )}
+                {/* کاور آهنگ */}
+                <div
+                  style={{
+                    position: 'relative',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
+                >
+                  <CoverImage
+                    src={song.cover}
+                    alt=""
+                    iconSize={16}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                </div>
 
-                      {/* انتقال به پایین */}
-                      {originalIndex < queue.length - 1 && (
-                        <button
-                          onClick={() => onReorderQueue(originalIndex, originalIndex + 1)}
-                          title={t.moveDown || 'انتقال به پایین'}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: textSecondary,
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'color 0.16s ease',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = textPrimary)}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = textSecondary)}
-                        >
-                          <ArrowDown size={14} />
-                        </button>
-                      )}
-
-                      {/* پخش بلافاصله پس از آهنگ جاری (Play Next) */}
-                      {originalIndex > 0 && (
-                        <button
-                          onClick={() => onPlayNextInQueue(originalIndex)}
-                          title={t.playNext || 'پخش به عنوان بعدی'}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: textSecondary,
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'color 0.16s ease',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = accentColor)}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = textSecondary)}
-                        >
-                          <CornerDownLeft size={14} />
-                        </button>
-                      )}
-
-                      {/* حذف از صف */}
-                      <button
-                        onClick={() => onRemoveFromQueue(originalIndex)}
-                        title={t.removeFromQueue || 'حذف از صف'}
+                {/* نام آهنگ و خواننده */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: isCurrent ? 700 : 500,
+                      color: isCurrent ? primaryColor : textPrimary,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.name}</span>
+                    {isCurrent && (
+                      <span
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: textSecondary,
-                          cursor: 'pointer',
-                          padding: '4px',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'color 0.16s ease',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: primaryColor,
+                          opacity: 0.9,
+                          flexShrink: 0,
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = textSecondary)}
                       >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                        {t.close === 'Close' ? '(Now Playing)' : '(در حال پخش)'}
+                      </span>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  <div
+                    style={{
+                      fontSize: '11.5px',
+                      color: textSecondary,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      marginTop: '1px',
+                    }}
+                  >
+                    {song.artist}
+                  </div>
+                </div>
+
+                {/* زمان قطعه */}
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: textSecondary,
+                    fontVariantNumeric: 'tabular-nums',
+                    flexShrink: 0,
+                  }}
+                >
+                  {formatDuration(song.duration)}
+                </span>
+
+                {/* دکمه حذف سطر (در حالت هاور یا تاچ) */}
+                <button
+                  className="q-del-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveFromQueue(originalIndex);
+                  }}
+                  title={t.removeFromQueue || 'حذف از صف'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: textSecondary,
+                    cursor: 'pointer',
+                    padding: '5px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: isMobile ? 0.7 : 0,
+                    transition: 'all 0.15s ease',
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ef4444';
+                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = textSecondary;
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <X size={15} />
+                </button>
+
+                {/* دستگیره جابه‌جایی اختصاصی (Drag Handle) */}
+                <div
+                  style={{
+                    color: textSecondary,
+                    cursor: 'grab',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4px',
+                    flexShrink: 0,
+                    touchAction: 'none',
+                  }}
+                  title={t.close === 'Close' ? 'Drag to reorder' : 'بکشید برای جابه‌جایی'}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <GripVertical size={16} />
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </motion.div>
   );

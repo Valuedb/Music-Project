@@ -1,22 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Upload } from 'lucide-react';
 import { DEMO_SONGS } from './player/demoSongs';
 import { PlayerBar } from './components/PlayerBar';
 import { TopBar } from './components/TopBar';
+import type { SearchNavigateTarget } from './components/SearchBar';
 import { Home } from './features/Home';
-import { AllSongs } from './features/AllSongs';
-import { Playlists } from './features/Playlists';
-import { Settings } from './features/Settings';
 import { usePersistentState } from './hooks/usePersistentState';
 import { usePlayer } from './hooks/usePlayer';
 import { STORAGE_KEYS } from './storage/keys';
+import { readJSON } from './storage/safeStorage';
 import { isEqualizerSettings, isPlaylistList, isSongList } from './types/guards';
 import type { EqualizerSettings, Playlist, Song } from './types';
 import { DEFAULT_EQ_SETTINGS, audioEffects } from './player/audioEffects';
 import { translations, type Language } from './locales';
 import { getTheme, type PaletteType, type ThemeMode } from './theme';
+import { getAudioBlobsBatch, deleteAudioBlob } from './storage/mediaStore';
+import { extractDroppedAudioFiles, extractSongsBatched } from './utils/audioMetadata';
 
-const tabs = ['home', 'allSongs', 'playlists'] as const;
+// بارگذاری تنبل صفحات غیر اول برای سرعت بالای راه‌اندازی روی ویندوز
+const AllSongs = lazy(() => import('./features/AllSongs').then((m) => ({ default: m.AllSongs })));
+const Playlists = lazy(() => import('./features/Playlists').then((m) => ({ default: m.Playlists })));
+const Artists = lazy(() => import('./features/Artists').then((m) => ({ default: m.Artists })));
+const Albums = lazy(() => import('./features/Albums').then((m) => ({ default: m.Albums })));
+const Folders = lazy(() => import('./features/Folders').then((m) => ({ default: m.Folders })));
+const Settings = lazy(() => import('./features/Settings').then((m) => ({ default: m.Settings })));
+
+const tabs = ['home', 'allSongs', 'playlists', 'artists', 'albums', 'folders'] as const;
+
+interface LaunchParamsLike {
+  files?: { getFile: () => Promise<File> }[];
+}
+
+interface LaunchQueueLike {
+  setConsumer: (consumer: (launchParams: LaunchParamsLike) => void) => void;
+}
 
 function App() {
   const [currentTabIndex, setCurrentTabIndex] = useState(0);
@@ -24,13 +42,49 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [direction, setDirection] = useState(0);
 
-  const [language, setLanguage] = useState<Language>('fa');
-  const [searchTerm, setSearchTerm] = useState("");
-  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
-  const [colorPalette, setColorPalette] = useState<PaletteType>('nordic');
+  const [language, setLanguage] = usePersistentState<Language>(
+    'appLanguage',
+    'fa',
+    (v): v is Language => v === 'fa' || v === 'en'
+  );
+  const [navTarget, setNavTarget] = useState<(SearchNavigateTarget & { token: number }) | null>(
+    null
+  );
+  const [themeMode, setThemeMode] = usePersistentState<ThemeMode>(
+    'appThemeMode',
+    'system',
+    (v): v is ThemeMode => v === 'system' || v === 'light' || v === 'dark'
+  );
+  const [colorPalette, setColorPalette] = usePersistentState<PaletteType>(
+    STORAGE_KEYS.palette,
+    'classic-blue',
+    (v): v is PaletteType => typeof v === 'string'
+  );
+  const [customBackground, setCustomBackground] = usePersistentState<string | null>(
+    STORAGE_KEYS.customBg,
+    null,
+    (v): v is string | null => v === null || typeof v === 'string'
+  );
+  const [customBgBlur, setCustomBgBlur] = usePersistentState<number>(
+    STORAGE_KEYS.customBgBlur,
+    10,
+    (v): v is number => typeof v === 'number'
+  );
+  const [customBgDim, setCustomBgDim] = usePersistentState<number>(
+    STORAGE_KEYS.customBgDim,
+    45,
+    (v): v is number => typeof v === 'number'
+  );
+  const [glassCardCovers, setGlassCardCovers] = usePersistentState<boolean>(
+    STORAGE_KEYS.glassCardCovers,
+    true,
+    (v): v is boolean => typeof v === 'boolean'
+  );
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const dragCounterRef = useRef(0);
 
-  // تشخیص حالت تیره/روشن سیستم یا گوشی
+  // تشخیص حالت تیره/روشن سیستم یا ویندوز
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.matchMedia) {
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -46,7 +100,7 @@ function App() {
     return () => media.removeEventListener('change', listener);
   }, []);
 
-  // فعال‌سازی واکنش لمسی فوری (Active state) در مرورگرهای موبایل مانند iOS Safari
+  // فعال‌سازی واکنش لمسی فوری (Active state) در مرورگرهای لمسی
   useEffect(() => {
     const handleTouchStart = () => {};
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -55,6 +109,11 @@ function App() {
 
   const [songs, setSongs] = usePersistentState<Song[]>(STORAGE_KEYS.library, DEMO_SONGS, isSongList);
   const [playlists, setPlaylists] = usePersistentState<Playlist[]>(STORAGE_KEYS.playlists, [], isPlaylistList);
+  const [customFolders, setCustomFolders] = usePersistentState<string[]>(
+    STORAGE_KEYS.folders,
+    [],
+    (v): v is string[] => Array.isArray(v) && v.every((item) => typeof item === 'string')
+  );
   const [equalizerSettings, setEqualizerSettings] = usePersistentState<EqualizerSettings>(
     STORAGE_KEYS.equalizer,
     DEFAULT_EQ_SETTINGS,
@@ -67,15 +126,100 @@ function App() {
     audioEffects.applySettings(equalizerSettings);
   }, [equalizerSettings]);
 
-  // در صورت خالی بودن دیتابیس لوکال، ۴ آهنگ دمو به صورت خودکار بارگذاری شوند
+  // در صورت خالی بودن دیتابیس لوکال، ۳ آهنگ دمو به صورت خودکار بارگذاری شوند
   useEffect(() => {
     if (songs.length === 0) {
       setSongs(DEMO_SONGS);
     }
   }, [songs.length, setSongs]);
 
+  // بازیابی یکپارچه و سریع لینک‌های فایل‌های صوتی ذخیره‌شده در IndexedDB + بازیابی آخرین آهنگ پخش‌شده
+  useEffect(() => {
+    let cancelled = false;
+    const rehydrateAudioUrls = async () => {
+      const localSongIds = songs
+        .filter((s) => s.fileUrl.startsWith('blob:'))
+        .map((s) => s.id);
+
+      const blobUrlMap = new Map<string, string>();
+      if (localSongIds.length > 0) {
+        const blobs = await getAudioBlobsBatch(localSongIds);
+        if (cancelled) return;
+        blobs.forEach((blob, id) => {
+          blobUrlMap.set(id, URL.createObjectURL(blob));
+        });
+      }
+
+      if (cancelled) return;
+
+      let restoredList = songs;
+      if (blobUrlMap.size > 0) {
+        restoredList = songs.map((s) => {
+          const freshUrl = blobUrlMap.get(s.id);
+          return freshUrl ? { ...s, fileUrl: freshUrl } : s;
+        });
+
+        setSongs((prev) =>
+          prev.map((s) => {
+            const freshUrl = blobUrlMap.get(s.id);
+            return freshUrl ? { ...s, fileUrl: freshUrl } : s;
+          })
+        );
+
+        setPlaylists((prev) =>
+          prev.map((p) => ({
+            ...p,
+            songs: p.songs.map((s) => {
+              const freshUrl = blobUrlMap.get(s.id);
+              return freshUrl ? { ...s, fileUrl: freshUrl } : s;
+            }),
+          }))
+        );
+      }
+
+      // بازیابی آخرین آهنگ در حال پخش نشست قبلی
+      const savedPlayback = readJSON<{ songId?: string; currentTime?: number } | null>(
+        STORAGE_KEYS.lastPlayback,
+        null
+      );
+      if (savedPlayback?.songId) {
+        const lastSong = restoredList.find((s) => s.id === savedPlayback.songId);
+        if (lastSong) {
+          player.restoreSong(lastSong);
+        }
+      }
+    };
+
+    rehydrateAudioUrls();
+    return () => {
+      cancelled = true;
+    };
+    // فقط یک‌بار هنگام شروع برنامه اجرا شود
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // پشتیبانی بومی ویندوز از باز کردن فایل صوتی با برنامه (Open With / LaunchQueue API)
+  useEffect(() => {
+    const win = window as unknown as { launchQueue?: LaunchQueueLike };
+    if (!win.launchQueue?.setConsumer) return;
+
+    win.launchQueue.setConsumer(async (launchParams) => {
+      if (!launchParams?.files || launchParams.files.length === 0) return;
+      const files = await Promise.all(launchParams.files.map((handle) => handle.getFile()));
+      const imported = await extractSongsBatched(files);
+      if (imported.length === 0) return;
+      setSongs((prev) => {
+        const updated = [...prev, ...imported];
+        player.playSongFromList(imported[0], updated);
+        return updated;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const t = translations[language];
-  const resolvedMode: 'light' | 'dark' = themeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : themeMode;
+  const resolvedMode: 'light' | 'dark' =
+    themeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : themeMode;
   const theme = getTheme(resolvedMode, colorPalette);
 
   // همگام‌سازی کلاس dark برای استایل‌ها
@@ -87,131 +231,283 @@ function App() {
     }
   }, [resolvedMode]);
 
-  /** وقتی یک پخش «واقعی» حساب شد (نه فقط کلیک یا رد شدن)، شمارنده‌ی پخش زیاد می‌شه و تاریخ پخش ثبت می‌شه */
-  const handleSongPlayed = (id: string) => {
-    setSongs((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, playCount: s.playCount + 1, lastPlayedAt: Date.now() }
-          : s
-      )
-    );
-  };
+  /** وقتی یک پخش «واقعی» حساب شد، شمارنده‌ی پخش زیاد می‌شه و تاریخ پخش ثبت می‌شه */
+  const handleSongPlayed = useCallback(
+    (id: string) => {
+      setSongs((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, playCount: s.playCount + 1, lastPlayedAt: Date.now() } : s
+        )
+      );
+    },
+    [setSongs]
+  );
 
   /** تغییر وضعیت آهنگ محبوب (Favorite) */
-  const toggleFavoriteSong = (id: string) => {
-    // ۱. به‌روزرسانی صریح و آنی آهنگ در حال پخش
-    if (player.currentSong && player.currentSong.id === id) {
-      player.syncSong({
-        ...player.currentSong,
-        isFavorite: !player.currentSong.isFavorite,
-      });
-    } else {
-      const active = songs.find((s) => s.id === id);
-      if (active) {
+  const toggleFavoriteSong = useCallback(
+    (id: string) => {
+      if (player.currentSong && player.currentSong.id === id) {
         player.syncSong({
-          ...active,
-          isFavorite: !active.isFavorite,
+          ...player.currentSong,
+          isFavorite: !player.currentSong.isFavorite,
         });
-      }
-    }
-
-    // ۲. ذخیره وضعیت جدید در کل کتابخانه
-    setSongs((prev) =>
-      prev.map((s) =>
-        s.id === id ? { ...s, isFavorite: !s.isFavorite } : s
-      )
-    );
-
-    // ۳. به‌روزرسانی در پلی‌لیست‌ها
-    setPlaylists((prev) =>
-      prev.map((p) => ({
-        ...p,
-        songs: p.songs.map((s) =>
-          s.id === id ? { ...s, isFavorite: !s.isFavorite } : s
-        ),
-      }))
-    );
-  };
-
-  /** پخش یک آهنگ از لیست و به‌روزرسانی تاریخچه پخش (Recently Played) */
-  const handlePlaySongFromList = (song: Song, list: Song[]) => {
-    setSongs((prev) =>
-      prev.map((s) =>
-        s.id === song.id ? { ...s, lastPlayedAt: Date.now() } : s
-      )
-    );
-    player.playSongFromList(song, list);
-    setIsPlaying(true);
-  };
-
-  const handleCreatePlaylist = (name: string, selectedSongs: Song[]) => {
-    const newPlaylist: Playlist = {
-      id: crypto.randomUUID(),
-      name: name,
-      songs: selectedSongs
-    };
-    setPlaylists((prev) => [...prev, newPlaylist]);
-  };
-
-  const deletePlaylist = (id: string) => {
-    setPlaylists((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const renamePlaylist = (id: string, newName: string) => {
-    setPlaylists((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, name: newName } : p))
-    );
-  };
-
-  const updatePlaylistSongs = (id: string, newSongs: Song[]) => {
-    setPlaylists((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, songs: newSongs } : p))
-    );
-  };
-
-  const updateSong = (updatedSong: Song) => {
-    setSongs((prev) => prev.map((s) => (s.id === updatedSong.id ? updatedSong : s)));
-    setPlaylists((prev) =>
-      prev.map((p) => ({
-        ...p,
-        songs: p.songs.map((s) => (s.id === updatedSong.id ? updatedSong : s)),
-      }))
-    );
-    player.syncSong(updatedSong);
-  };
-
-  const addSongToPlaylist = (playlistId: string, song: Song) => {
-    setPlaylists((prev) =>
-      prev.map((p) => {
-        if (p.id === playlistId && !p.songs.some((s) => s.id === song.id)) {
-          return { ...p, songs: [...p.songs, song] };
+      } else {
+        const active = songs.find((s) => s.id === id);
+        if (active) {
+          player.syncSong({
+            ...active,
+            isFavorite: !active.isFavorite,
+          });
         }
-        return p;
-      })
-    );
+      }
+
+      setSongs((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, isFavorite: !s.isFavorite } : s))
+      );
+
+      setPlaylists((prev) =>
+        prev.map((p) => ({
+          ...p,
+          songs: p.songs.map((s) => (s.id === id ? { ...s, isFavorite: !s.isFavorite } : s)),
+        }))
+      );
+    },
+    [player, setPlaylists, setSongs, songs]
+  );
+
+  /** پخش یک آهنگ از لیست و به‌روزرسانی تاریخچه پخش */
+  const handlePlaySongFromList = useCallback(
+    (song: Song, list: Song[]) => {
+      setSongs((prev) =>
+        prev.map((s) => (s.id === song.id ? { ...s, lastPlayedAt: Date.now() } : s))
+      );
+      player.playSongFromList(song, list);
+    },
+    [player, setSongs]
+  );
+
+  const handleCreatePlaylist = useCallback(
+    (name: string, selectedSongs: Song[]) => {
+      const newPlaylist: Playlist = {
+        id: crypto.randomUUID(),
+        name: name,
+        songs: selectedSongs,
+      };
+      setPlaylists((prev) => [...prev, newPlaylist]);
+    },
+    [setPlaylists]
+  );
+
+  const deletePlaylist = useCallback(
+    (id: string) => {
+      setPlaylists((prev) => prev.filter((p) => p.id !== id));
+    },
+    [setPlaylists]
+  );
+
+  const renamePlaylist = useCallback(
+    (id: string, newName: string) => {
+      setPlaylists((prev) => prev.map((p) => (p.id === id ? { ...p, name: newName } : p)));
+    },
+    [setPlaylists]
+  );
+
+  const updatePlaylistSongs = useCallback(
+    (id: string, newSongs: Song[]) => {
+      setPlaylists((prev) => prev.map((p) => (p.id === id ? { ...p, songs: newSongs } : p)));
+    },
+    [setPlaylists]
+  );
+
+  const updateSong = useCallback(
+    (updatedSong: Song) => {
+      setSongs((prev) => prev.map((s) => (s.id === updatedSong.id ? updatedSong : s)));
+      setPlaylists((prev) =>
+        prev.map((p) => ({
+          ...p,
+          songs: p.songs.map((s) => (s.id === updatedSong.id ? updatedSong : s)),
+        }))
+      );
+      player.syncSong(updatedSong);
+    },
+    [player, setPlaylists, setSongs]
+  );
+
+  const addSongToPlaylist = useCallback(
+    (playlistId: string, song: Song) => {
+      setPlaylists((prev) =>
+        prev.map((p) => {
+          if (p.id === playlistId && !p.songs.some((s) => s.id === song.id)) {
+            return { ...p, songs: [...p.songs, song] };
+          }
+          return p;
+        })
+      );
+    },
+    [setPlaylists]
+  );
+
+  const deleteSong = useCallback(
+    (id: string) => {
+      setSongs((prev) => {
+        const target = prev.find((s) => s.id === id);
+        if (target?.fileUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(target.fileUrl);
+        }
+        return prev.filter((s) => s.id !== id);
+      });
+      setPlaylists((prev) =>
+        prev.map((p) => ({ ...p, songs: p.songs.filter((s) => s.id !== id) }))
+      );
+      player.removeSong(id);
+      deleteAudioBlob(id);
+    },
+    [player, setPlaylists, setSongs]
+  );
+
+  const handleCreateFolder = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setCustomFolders((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    },
+    [setCustomFolders]
+  );
+
+  const handleRenameFolder = useCallback(
+    (oldName: string, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed || trimmed === oldName) return;
+      setCustomFolders((prev) => {
+        const filtered = prev.filter((f) => f !== oldName && f !== trimmed);
+        return [...filtered, trimmed];
+      });
+      setSongs((prev) =>
+        prev.map((s) => (s.folder?.trim() === oldName ? { ...s, folder: trimmed } : s))
+      );
+      setPlaylists((prev) =>
+        prev.map((p) => ({
+          ...p,
+          songs: p.songs.map((s) => (s.folder?.trim() === oldName ? { ...s, folder: trimmed } : s)),
+        }))
+      );
+      if (player.currentSong?.folder?.trim() === oldName) {
+        player.syncSong({ ...player.currentSong, folder: trimmed });
+      }
+    },
+    [player, setCustomFolders, setPlaylists, setSongs]
+  );
+
+  const handleDeleteFolder = useCallback(
+    (name: string) => {
+      setCustomFolders((prev) => prev.filter((f) => f !== name));
+      setSongs((prev) =>
+        prev.map((s) => (s.folder?.trim() === name ? { ...s, folder: undefined } : s))
+      );
+      setPlaylists((prev) =>
+        prev.map((p) => ({
+          ...p,
+          songs: p.songs.map((s) => (s.folder?.trim() === name ? { ...s, folder: undefined } : s)),
+        }))
+      );
+      if (player.currentSong?.folder?.trim() === name) {
+        player.syncSong({ ...player.currentSong, folder: undefined });
+      }
+    },
+    [player, setCustomFolders, setPlaylists, setSongs]
+  );
+
+  const handleAssignSongsToFolder = useCallback(
+    (songIds: string[], folderName: string) => {
+      const trimmed = folderName.trim();
+      if (!trimmed) return;
+      setCustomFolders((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+      const idSet = new Set(songIds);
+      setSongs((prev) => prev.map((s) => (idSet.has(s.id) ? { ...s, folder: trimmed } : s)));
+      if (player.currentSong && idSet.has(player.currentSong.id)) {
+        player.syncSong({ ...player.currentSong, folder: trimmed });
+      }
+    },
+    [player, setCustomFolders, setSongs]
+  );
+
+  const setTab = useCallback(
+    (tab: string) => {
+      if (tab === 'settings') {
+        setIsSettingsOpen(true);
+        return;
+      }
+      const index = tabs.findIndex((name) => name === tab);
+      if (index === -1) return;
+      setNavTarget(null);
+      if (index !== currentTabIndex) {
+        setDirection(index > currentTabIndex ? 1 : -1);
+        setCurrentTabIndex(index);
+      }
+      setIsSettingsOpen(false);
+    },
+    [currentTabIndex]
+  );
+
+  const handleNavigateFromSearch = useCallback(
+    (target: SearchNavigateTarget) => {
+      const index = tabs.findIndex((name) => name === target.tab);
+      if (index === -1) return;
+      setNavTarget({ ...target, token: Date.now() });
+      if (index !== currentTabIndex) {
+        setDirection(index > currentTabIndex ? 1 : -1);
+        setCurrentTabIndex(index);
+      }
+      setIsSettingsOpen(false);
+    },
+    [currentTabIndex]
+  );
+
+  // رها کردن فایل‌ها یا پوشه‌های صوتی از Windows Explorer در هر نقطه از پنجره برنامه
+  const hasDraggedFiles = (dt: DataTransfer | null): boolean =>
+    Boolean(dt && Array.from(dt.types || []).includes('Files'));
+
+  const handleWindowDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasDraggedFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    setIsDraggingFiles(true);
   };
 
-  const deleteSong = (id: string) => {
-    setSongs((prev) => prev.filter((s) => s.id !== id));
-    setPlaylists((prev) =>
-      prev.map((p) => ({ ...p, songs: p.songs.filter((s) => s.id !== id) }))
-    );
-    player.removeSong(id);
+  const handleWindowDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasDraggedFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
   };
 
-  const setTab = (tab: string) => {
-    if (tab === 'settings') {
-      setIsSettingsOpen(true);
-      return;
+  const handleWindowDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasDraggedFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) {
+      setIsDraggingFiles(false);
     }
-    const index = tabs.findIndex((name) => name === tab);
-    if (index === -1) return;
-    if (index !== currentTabIndex) {
-      setDirection(index > currentTabIndex ? 1 : -1);
-      setCurrentTabIndex(index);
-    }
-    setIsSettingsOpen(false);
+  };
+
+  const handleWindowDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    if (!hasDraggedFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDraggingFiles(false);
+
+    const extractedItems = await extractDroppedAudioFiles(e.dataTransfer);
+    if (extractedItems.length === 0) return;
+
+    const newSongs = await extractSongsBatched(extractedItems);
+    if (newSongs.length === 0) return;
+
+    setSongs((prev) => {
+      const updated = [...prev, ...newSongs];
+      if (!player.currentSong) {
+        player.playSongFromList(newSongs[0], updated);
+      }
+      return updated;
+    });
   };
 
   // انیمیشن جابه‌جایی صفحات به سبک One UI / Samsung Music بدون جمع شدن صفحه
@@ -219,9 +515,7 @@ function App() {
     enter: (dir: number) => {
       if (dir === 0) return { x: 0 };
       const isRtl = language === 'fa';
-      // در زبان فارسی (RTL)، حرکت به تب بعد (dir > 0) یعنی صفحه جدید از چپ وارد شود
-      // در زبان انگلیسی (LTR)، حرکت به تب بعد (dir > 0) یعنی صفحه جدید از راست وارد شود
-      const offset = dir > 0 ? (isRtl ? -100 : 100) : (isRtl ? 100 : -100);
+      const offset = dir > 0 ? (isRtl ? -100 : 100) : isRtl ? 100 : -100;
       return {
         x: `${offset}%`,
       };
@@ -230,7 +524,7 @@ function App() {
     exit: (dir: number) => {
       if (dir === 0) return { x: 0 };
       const isRtl = language === 'fa';
-      const offset = dir > 0 ? (isRtl ? 100 : -100) : (isRtl ? -100 : 100);
+      const offset = dir > 0 ? (isRtl ? 100 : -100) : isRtl ? -100 : 100;
       return {
         zIndex: 0,
         x: `${offset}%`,
@@ -263,6 +557,14 @@ function App() {
           equalizerSettings={equalizerSettings}
           setEqualizerSettings={setEqualizerSettings}
           theme={theme}
+          customBackground={customBackground}
+          setCustomBackground={setCustomBackground}
+          customBgBlur={customBgBlur}
+          setCustomBgBlur={setCustomBgBlur}
+          customBgDim={customBgDim}
+          setCustomBgDim={setCustomBgDim}
+          glassCardCovers={glassCardCovers}
+          setGlassCardCovers={setGlassCardCovers}
         />
       );
     }
@@ -285,6 +587,7 @@ function App() {
             theme={theme}
             language={language}
             isPlaying={isPlaying}
+            glassCardCovers={glassCardCovers}
           />
         );
       case 'allSongs':
@@ -302,8 +605,8 @@ function App() {
             onAddSongToPlaylist={addSongToPlaylist}
             onToggleFavorite={toggleFavoriteSong}
             t={t}
-            searchTerm={searchTerm}
             theme={theme}
+            glassCardCovers={glassCardCovers}
           />
         );
       case 'playlists':
@@ -311,7 +614,7 @@ function App() {
           <Playlists
             playlists={playlists}
             allSongs={songs}
-            onPlaySongFromList={player.playSongFromList}
+            onPlaySongFromList={handlePlaySongFromList}
             addToQueue={player.addToQueue}
             t={t}
             onCreatePlaylist={handleCreatePlaylist}
@@ -320,6 +623,85 @@ function App() {
             onUpdatePlaylistSongs={updatePlaylistSongs}
             theme={theme}
             language={language}
+            glassCardCovers={glassCardCovers}
+            initialPlaylist={
+              navTarget?.tab === 'playlists' ? { id: navTarget.key, token: navTarget.token } : null
+            }
+          />
+        );
+      case 'artists':
+        return (
+          <Artists
+            songs={songs}
+            playlists={playlists}
+            currentSong={player.currentSong}
+            isPlaying={isPlaying}
+            onPlaySongFromList={handlePlaySongFromList}
+            onCreatePlaylist={handleCreatePlaylist}
+            addToQueue={player.addToQueue}
+            onDeleteSong={deleteSong}
+            onUpdateSong={updateSong}
+            onAddSongToPlaylist={addSongToPlaylist}
+            onToggleFavorite={toggleFavoriteSong}
+            t={t}
+            theme={theme}
+            language={language}
+            glassCardCovers={glassCardCovers}
+            initialArtist={
+              navTarget?.tab === 'artists' ? { name: navTarget.key, token: navTarget.token } : null
+            }
+          />
+        );
+      case 'albums':
+        return (
+          <Albums
+            songs={songs}
+            playlists={playlists}
+            currentSong={player.currentSong}
+            isPlaying={isPlaying}
+            onPlaySongFromList={handlePlaySongFromList}
+            onCreatePlaylist={handleCreatePlaylist}
+            addToQueue={player.addToQueue}
+            onDeleteSong={deleteSong}
+            onUpdateSong={updateSong}
+            onAddSongToPlaylist={addSongToPlaylist}
+            onToggleFavorite={toggleFavoriteSong}
+            t={t}
+            theme={theme}
+            language={language}
+            glassCardCovers={glassCardCovers}
+            initialAlbum={
+              navTarget?.tab === 'albums' ? { key: navTarget.key, token: navTarget.token } : null
+            }
+          />
+        );
+      case 'folders':
+        return (
+          <Folders
+            songs={songs}
+            setSongs={setSongs}
+            playlists={playlists}
+            customFolders={customFolders}
+            onCreateFolder={handleCreateFolder}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onAssignSongsToFolder={handleAssignSongsToFolder}
+            currentSong={player.currentSong}
+            isPlaying={isPlaying}
+            onPlaySongFromList={handlePlaySongFromList}
+            onCreatePlaylist={handleCreatePlaylist}
+            addToQueue={player.addToQueue}
+            onDeleteSong={deleteSong}
+            onUpdateSong={updateSong}
+            onAddSongToPlaylist={addSongToPlaylist}
+            onToggleFavorite={toggleFavoriteSong}
+            t={t}
+            theme={theme}
+            language={language}
+            glassCardCovers={glassCardCovers}
+            initialFolder={
+              navTarget?.tab === 'folders' ? { id: navTarget.key, token: navTarget.token } : null
+            }
           />
         );
       default:
@@ -329,6 +711,10 @@ function App() {
 
   return (
     <div
+      onDragEnter={handleWindowDragEnter}
+      onDragOver={handleWindowDragOver}
+      onDragLeave={handleWindowDragLeave}
+      onDrop={handleWindowDrop}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -341,7 +727,45 @@ function App() {
         position: 'relative',
       }}
     >
-      {/* هاله نور پس‌زمینه زنده و سیال به سبک اپل موزیک (Apple Music Ambient Glow) */}
+      {/* پس‌زمینه انتخابی کاربر (Custom App Wallpaper) */}
+      {customBackground && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              inset: '-24px',
+              backgroundImage: `url(${customBackground})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: `blur(${customBgBlur}px)`,
+              transform: 'scale(1.05)',
+              transition: 'filter 0.3s ease',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: theme.isDark
+                ? `rgba(0, 0, 0, ${customBgDim / 100})`
+                : `rgba(255, 255, 255, ${customBgDim / 100})`,
+              backdropFilter: 'saturate(130%)',
+              transition: 'background-color 0.3s ease',
+            }}
+          />
+        </div>
+      )}
+
+      {/* هاله نور پس‌زمینه زنده و سیال به سبک اپل موزیک */}
       <div
         aria-hidden="true"
         style={{
@@ -350,6 +774,8 @@ function App() {
           pointerEvents: 'none',
           zIndex: 0,
           overflow: 'hidden',
+          opacity: customBackground ? 0.45 : 1,
+          transition: 'opacity 0.4s ease',
         }}
       >
         <div
@@ -409,10 +835,12 @@ function App() {
         currentTab={isSettingsOpen ? 'settings' : currentTab}
         setCurrentTab={setTab}
         t={t}
-        onSearch={setSearchTerm}
         theme={theme}
         songs={songs}
+        playlists={playlists}
+        customFolders={customFolders}
         onPlaySong={handlePlaySongFromList}
+        onSearchNavigate={handleNavigateFromSearch}
       />
 
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', zIndex: 1 }}>
@@ -452,7 +880,7 @@ function App() {
               backgroundColor: 'transparent',
             }}
           >
-            {renderContent()}
+            <Suspense fallback={null}>{renderContent()}</Suspense>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -488,10 +916,43 @@ function App() {
           onPlayQueueSong={player.playQueueSongAt}
           onClearQueue={player.clearQueue}
           onShuffleQueue={player.shuffleQueue}
-          onPlayNextInQueue={player.playNextInQueue}
           onCreatePlaylist={handleCreatePlaylist}
+          onSelectTabIndex={(idx) => {
+            if (tabs[idx]) setTab(tabs[idx]);
+          }}
+          onOpenSettings={() => setTab('settings')}
         />
       </div>
+
+      {/* راهنمای رها کردن فایل/پوشه فقط هنگام کشیدن فایل روی پنجره ویندوز */}
+      {isDraggingFiles && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 16,
+            zIndex: 999999,
+            borderRadius: '24px',
+            border: `2px dashed ${theme.colors.primary}`,
+            backgroundColor: theme.isDark ? 'rgba(12, 10, 24, 0.78)' : 'rgba(255, 255, 255, 0.82)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            pointerEvents: 'none',
+          }}
+        >
+          <Upload size={44} color={theme.colors.primary} />
+          <div style={{ fontSize: '20px', fontWeight: 700, color: theme.colors.textPrimary }}>
+            {t.dropAudioTitle || 'فایل یا پوشه موسیقی را اینجا رها کنید'}
+          </div>
+          <div style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
+            {t.dropAudioHint || 'برای افزودن فوری به کتابخانه رها کنید'}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

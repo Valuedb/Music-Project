@@ -1,18 +1,21 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
-import { SearchBar } from './SearchBar';
+import { SearchBar, type SearchNavigateTarget } from './SearchBar';
 
-import type { Song } from '../types';
+import type { AppTab, Playlist, Song } from '../types';
 
 interface TopBarProps {
   currentTab: string;
-  setCurrentTab: (tab: 'home' | 'allSongs' | 'playlists' | 'settings') => void;
+  setCurrentTab: (tab: AppTab) => void;
   t: any;
-  onSearch: (term: string) => void;
+  onSearch?: (term: string) => void;
   theme: any;
   songs?: Song[];
+  playlists?: Playlist[];
+  customFolders?: string[];
   onPlaySong?: (song: Song, list: Song[]) => void;
+  onSearchNavigate?: (target: SearchNavigateTarget) => void;
 }
 
 // استخراج ایمن مقدار translateX از استایل کامپیوترشده برای سازگاری با تمامی مرورگرها در RTL و LTR
@@ -48,15 +51,21 @@ export const TopBar = ({
   onSearch,
   theme,
   songs,
+  playlists,
+  customFolders,
   onPlaySong,
+  onSearchNavigate,
 }: TopBarProps) => {
   const menuItems = useMemo(
     () => [
       { id: 'home', label: t.home },
       { id: 'allSongs', label: t.allSongs },
       { id: 'playlists', label: t.playlists },
+      { id: 'artists', label: t.artists || 'آرتیست‌ها' },
+      { id: 'albums', label: t.albums || 'آلبوم‌ها' },
+      { id: 'folders', label: t.folders || 'فولدربندی‌ها' },
     ],
-    [t.home, t.allSongs, t.playlists]
+    [t.home, t.allSongs, t.playlists, t.artists, t.albums, t.folders]
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -152,7 +161,10 @@ export const TopBar = ({
             placeholder={t.search}
             theme={theme}
             songs={songs}
+            playlists={playlists}
+            customFolders={customFolders}
             onPlaySong={onPlaySong}
+            onNavigate={onSearchNavigate}
             t={t}
           />
           <button
@@ -210,7 +222,7 @@ export const TopBar = ({
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '14px',
+            gap: 'clamp(10px, 1.6vw, 18px)',
             position: 'relative',
             whiteSpace: 'nowrap',
           }}
@@ -223,7 +235,7 @@ export const TopBar = ({
                 ref={(el) => {
                   tabRefs.current[index] = el;
                 }}
-                onClick={() => setCurrentTab(item.id as any)}
+                onClick={() => setCurrentTab(item.id as AppTab)}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -234,10 +246,11 @@ export const TopBar = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: '6px 8px 4px 8px',
-                  fontSize: '16px',
+                  fontSize: 'clamp(13.5px, 1.4vw, 15.5px)',
                   fontWeight: isActive ? '700' : '500',
                   color: isActive ? theme.colors.primary : theme.colors.textSecondary,
                   whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   outline: 'none',
                   userSelect: 'none',
                   transform: isActive ? 'scale(1.12)' : 'scale(0.88)',

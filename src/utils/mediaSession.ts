@@ -10,7 +10,7 @@ interface MediaSessionCallbacks {
 
 /**
  * مدیریت هماهنگی اطلاعات و رویدادهای پخش با Media Session API بومی سیستم‌عامل
- * (Windows Media Controls, Android Lockscreen Widget, iOS Control Center)
+ * (Windows 10/11 Media Controls, Keyboard Media Keys, Lockscreen Widget)
  */
 export const syncMediaSession = (
   song: Song | null,
@@ -27,7 +27,6 @@ export const syncMediaSession = (
     return;
   }
 
-  // تنظیم متادیتا برای نمایش کاور و متن روی لاک‌اسکرین و کنترل‌های سیستم
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.name,
@@ -44,7 +43,6 @@ export const syncMediaSession = (
 
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
 
-    // اتصال اکشن‌های دکمه‌های سخت‌افزاری و نرم‌افزاری سیستم‌عامل
     navigator.mediaSession.setActionHandler('play', () => callbacks.onPlay());
     navigator.mediaSession.setActionHandler('pause', () => callbacks.onPause());
     navigator.mediaSession.setActionHandler('previoustrack', () => callbacks.onPrev());
@@ -58,6 +56,29 @@ export const syncMediaSession = (
       });
     }
   } catch {
-    // MediaSession ممکن است در برخی محیط‌های خاص یا وب‌ویوهای محدود دسترسی ندهد
+    // MediaSession ممکن است در برخی محیط‌های خاص دسترسی ندهد
+  }
+};
+
+/** به‌روزرسانی نوار زمان زنده روی کنترلر مدیای ویندوز */
+export const syncMediaSessionPosition = (duration: number, position: number, playbackRate = 1) => {
+  if (
+    typeof window === 'undefined' ||
+    !('mediaSession' in navigator) ||
+    typeof navigator.mediaSession.setPositionState !== 'function'
+  ) {
+    return;
+  }
+  if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(position)) {
+    return;
+  }
+  try {
+    navigator.mediaSession.setPositionState({
+      duration,
+      position: Math.max(0, Math.min(duration, position)),
+      playbackRate,
+    });
+  } catch {
+    // نادیده گرفتن خطا در مرورگرهای قدیمی
   }
 };

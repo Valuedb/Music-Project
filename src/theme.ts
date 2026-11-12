@@ -1,6 +1,8 @@
 import { withAlpha } from './utils/color';
 
 export type PaletteType =
+  | 'classic-blue'
+  | 'classic-red'
   | 'amethyst'
   | 'sapphire'
   | 'amber'
@@ -36,6 +38,46 @@ const baseTransitions = {
 
 // تم‌های لایت (روشن) با سطوح شیشه‌ای و کنتراست تقویت‌شده برای خوانایی عالی
 const lightThemes: Record<PaletteType, any> = {
+  'classic-blue': {
+    name: 'سفید آبی',
+    colors: {
+      primary: '#0066FF',
+      accent: '#2563EB',
+      secondary: '#1D4ED8',
+      background: '#FFFFFF',
+      surface: 'rgba(240, 246, 255, 0.78)',
+      surfaceSolid: '#EFF6FF',
+      surfaceHover: 'rgba(0, 102, 255, 0.08)',
+      textPrimary: '#0A0E17',
+      textSecondary: '#4B5563',
+      textInverse: '#ffffff',
+      border: 'rgba(0, 102, 255, 0.20)',
+      borderLight: 'rgba(255, 255, 255, 0.95)',
+      glow: '#0066FF',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
+  },
+  'classic-red': {
+    name: 'سفید قرمز',
+    colors: {
+      primary: '#DC2626',
+      accent: '#EF4444',
+      secondary: '#B91C1C',
+      background: '#FFFFFF',
+      surface: 'rgba(254, 242, 242, 0.78)',
+      surfaceSolid: '#FEF2F2',
+      surfaceHover: 'rgba(220, 38, 38, 0.08)',
+      textPrimary: '#140808',
+      textSecondary: '#5A4A4A',
+      textInverse: '#ffffff',
+      border: 'rgba(220, 38, 38, 0.20)',
+      borderLight: 'rgba(255, 255, 255, 0.95)',
+      glow: '#DC2626',
+      danger: '#DC2626',
+      success: '#16A34A',
+    },
+  },
   amethyst: {
     name: 'آمیتیست بنفش',
     colors: {
@@ -258,10 +300,50 @@ const lightThemes: Record<PaletteType, any> = {
   },
   default: null as any,
 };
-lightThemes.default = lightThemes.nordic;
+lightThemes.default = lightThemes['classic-blue'];
 
 // تم‌های دارک (تیره) با سطوح شیشه‌ای بلور، درخشش‌های عمیق و رنگ‌های استخراج‌شده
 const darkThemes: Record<PaletteType, any> = {
+  'classic-blue': {
+    name: 'مشکی آبی',
+    colors: {
+      primary: '#38BDF8',
+      accent: '#60A5FA',
+      secondary: '#1E3A8A',
+      background: '#07080B',
+      surface: 'rgba(15, 23, 42, 0.58)',
+      surfaceSolid: '#0F172A',
+      surfaceHover: 'rgba(56, 189, 248, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#94A3B8',
+      textInverse: '#000000',
+      border: 'rgba(56, 189, 248, 0.22)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#38BDF8',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
+  },
+  'classic-red': {
+    name: 'مشکی قرمز',
+    colors: {
+      primary: '#EF4444',
+      accent: '#F87171',
+      secondary: '#7F1D1D',
+      background: '#090505',
+      surface: 'rgba(45, 15, 15, 0.58)',
+      surfaceSolid: '#260B0B',
+      surfaceHover: 'rgba(239, 68, 68, 0.14)',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#BAA3A3',
+      textInverse: '#000000',
+      border: 'rgba(239, 68, 68, 0.24)',
+      borderLight: 'rgba(255, 255, 255, 0.12)',
+      glow: '#EF4444',
+      danger: '#FF453A',
+      success: '#30D158',
+    },
+  },
   amethyst: {
     name: 'آمیتیست بنفش',
     colors: {
@@ -484,11 +566,11 @@ const darkThemes: Record<PaletteType, any> = {
   },
   default: null as any,
 };
-darkThemes.default = darkThemes.nordic;
+darkThemes.default = darkThemes['classic-blue'];
 
 export const getTheme = (mode: ThemeMode | 'light' | 'dark', palette: PaletteType) => {
   const effectiveMode = mode === 'dark' ? 'dark' : 'light';
-  const paletteKey = (palette in lightThemes ? palette : 'nordic') as PaletteType;
+  const paletteKey = (palette in lightThemes ? palette : 'classic-blue') as PaletteType;
   const theme = effectiveMode === 'light' ? lightThemes[paletteKey] : darkThemes[paletteKey];
 
   const isDark = effectiveMode === 'dark';

@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
+import { CoverImage } from '../components/CoverImage';
 
 interface PlaylistsProps {
   playlists: Playlist[];
@@ -29,6 +30,8 @@ interface PlaylistsProps {
   onUpdatePlaylistSongs: (id: string, newSongs: Song[]) => void;
   theme: any;
   language: 'fa' | 'en';
+  glassCardCovers?: boolean;
+  initialPlaylist?: { id: string; token: number } | null;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -71,10 +74,11 @@ const PlaylistCover = ({ songs, theme }: { songs: Song[]; theme: any }) => {
       }}
     >
       {covers.map((song, i) => (
-        <img
+        <CoverImage
           key={`${song.id}-${i}`}
           src={song.cover}
           alt=""
+          iconSize={16}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ))}
@@ -150,22 +154,27 @@ const MenuItem = ({
   color?: string;
   theme: any;
 }) => {
-  const hoverBg = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
+  const hoverBg = color
+    ? 'rgba(255, 69, 58, 0.15)'
+    : theme.isDark
+    ? 'rgba(255, 255, 255, 0.12)'
+    : 'rgba(0, 0, 0, 0.07)';
   return (
     <button
       onClick={onClick}
       style={{
         width: '100%',
-        padding: '12px 16px',
+        padding: '9px 12px',
+        borderRadius: '8px',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
         background: 'none',
         border: 'none',
         cursor: 'pointer',
         textAlign: 'start',
         color: color ?? theme.colors.textPrimary,
-        transition: 'background-color 0.15s ease',
+        transition: 'background-color 0.12s ease',
         outline: 'none',
       }}
       onMouseEnter={(e) => {
@@ -175,7 +184,7 @@ const MenuItem = ({
         e.currentTarget.style.backgroundColor = 'transparent';
       }}
     >
-      {icon} <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+      {icon} <span style={{ fontSize: 13.5, fontWeight: 500 }}>{label}</span>
     </button>
   );
 };
@@ -202,14 +211,15 @@ const PlaylistMenu = ({
       position: 'absolute',
       top: 'calc(100% + 6px)',
       [align === 'end' ? 'insetInlineEnd' : 'insetInlineStart']: 0,
-      backgroundColor: theme.isDark ? 'rgba(22, 18, 42, 0.88)' : 'rgba(255, 255, 255, 0.9)',
+      padding: '5px',
+      backgroundColor: theme.isDark ? 'rgba(22, 18, 42, 0.95)' : 'rgba(255, 255, 255, 0.97)',
       backdropFilter: 'blur(26px) saturate(180%)',
       WebkitBackdropFilter: 'blur(26px) saturate(180%)',
       borderRadius: theme.radius.md,
       border: `1px solid ${theme.colors.border}`,
-      boxShadow: '0 16px 36px rgba(0, 0, 0, 0.38)',
+      boxShadow: '0 16px 36px rgba(0, 0, 0, 0.42)',
       zIndex: 1000,
-      minWidth: 180,
+      minWidth: 185,
       overflow: 'hidden',
     }}
   >
@@ -610,10 +620,11 @@ const AddSongModal = ({
                 >
                   {isSelected && <Check size={14} color="#fff" />}
                 </div>
-                <img
+                <CoverImage
                   src={song.cover}
                   alt=""
-                  style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover' }}
+                  iconSize={15}
+                  style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
@@ -733,6 +744,7 @@ const SongRow = ({
   onRemove,
   theme,
   t,
+  glassCardCovers = true,
 }: {
   song: Song;
   index: number;
@@ -741,6 +753,7 @@ const SongRow = ({
   onRemove: (e: React.MouseEvent) => void;
   theme: any;
   t: any;
+  glassCardCovers?: boolean;
 }) => {
   const [hovered, setHovered] = useState(false);
 
@@ -755,35 +768,97 @@ const SongRow = ({
         direction: 'ltr',
         textAlign: 'left',
         gap: 12,
-        padding: 10,
-        borderBottom: `1px solid ${theme.colors.border}`,
+        padding: '8px 12px',
+        marginBottom: 8,
+        position: 'relative',
+        overflow: 'hidden',
+        border: `1px solid ${hovered ? (theme.isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)') : theme.colors.border}`,
         cursor: 'pointer',
-        borderRadius: theme.radius.sm,
-        backgroundColor: hovered ? theme.colors.surface : 'transparent',
-        transition: 'background 0.2s',
+        borderRadius: '14px',
+        backgroundColor: hovered
+          ? (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.85)')
+          : glassCardCovers
+          ? (theme.isDark ? 'rgba(18, 14, 32, 0.45)' : 'rgba(255, 255, 255, 0.55)')
+          : theme.colors.surface,
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        transition: 'all 0.2s',
       }}
     >
-      <span style={{ color: theme.colors.textSecondary, width: 20, flexShrink: 0 }}>
+      {/* پس‌زمینه کاور شیشه‌ای روی کارت */}
+      {glassCardCovers && song.cover && (
+        <>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `url(${song.cover})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(12px) brightness(0.65) saturate(180%)',
+              transform: 'scale(1.25)',
+              opacity: theme.isDark ? 0.6 : 0.4,
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: theme.isDark
+                ? 'linear-gradient(90deg, rgba(14, 11, 26, 0.72) 0%, rgba(22, 18, 40, 0.44) 50%, rgba(14, 11, 26, 0.72) 100%)'
+                : 'linear-gradient(90deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.82) 100%)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        </>
+      )}
+
+      <span style={{ color: theme.colors.textSecondary, width: 22, flexShrink: 0, position: 'relative', zIndex: 1, fontWeight: 600 }}>
         {index + 1}
       </span>
-      <img
+      <CoverImage
         src={song.cover}
         alt=""
-        style={{ width: 44, height: 44, borderRadius: theme.radius.sm, objectFit: 'cover' }}
+        iconSize={18}
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: '10px',
+          objectFit: 'cover',
+          position: 'relative',
+          zIndex: 1,
+          border: '1px solid rgba(255, 255, 255, 0.22)',
+          boxShadow: '0 3px 8px rgba(0,0,0,0.25)',
+          flexShrink: 0,
+        }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
         <div
           style={{
-            fontWeight: 'bold',
+            fontWeight: '600',
             color: theme.colors.textPrimary,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            textShadow: theme.isDark ? '0 1px 4px rgba(0,0,0,0.9)' : '0 1px 2px rgba(255,255,255,0.8)',
           }}
         >
           {song.name}
         </div>
-        <div style={{ fontSize: 13, color: theme.colors.textSecondary }}>{song.artist}</div>
+        <div
+          style={{
+            fontSize: 13,
+            color: theme.isDark ? 'rgba(255, 255, 255, 0.72)' : theme.colors.textSecondary,
+            textShadow: theme.isDark ? '0 1px 3px rgba(0,0,0,0.8)' : 'none',
+          }}
+        >
+          {song.artist}
+        </div>
       </div>
       <button
         onClick={(e) => {
@@ -797,6 +872,8 @@ const SongRow = ({
           color: hovered ? theme.colors.primary : theme.colors.textSecondary,
           cursor: 'pointer',
           padding: 6,
+          position: 'relative',
+          zIndex: 1,
           transition: 'all 0.15s',
         }}
       >
@@ -811,6 +888,8 @@ const SongRow = ({
           color: theme.colors.danger,
           cursor: 'pointer',
           padding: 6,
+          position: 'relative',
+          zIndex: 1,
           borderRadius: theme.radius.sm,
           transition: 'background-color 0.15s ease, opacity 0.15s ease',
         }}
@@ -890,10 +969,20 @@ export const Playlists = ({
   onUpdatePlaylistSongs,
   theme,
   language,
+  glassCardCovers = true,
+  initialPlaylist = null,
 }: PlaylistsProps) => {
   // شناسه پلی‌لیستی که باز شده تا همیشه با والد سینک باشد
-  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(() =>
+    initialPlaylist ? initialPlaylist.id : null
+  );
   const activePlaylist = playlists.find((p) => p.id === activePlaylistId) ?? null;
+
+  useEffect(() => {
+    if (initialPlaylist) {
+      setActivePlaylistId(initialPlaylist.id);
+    }
+  }, [initialPlaylist]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -1108,6 +1197,7 @@ export const Playlists = ({
               onRemove={(e) => handleRemoveSong(e, song.id)}
               theme={theme}
               t={t}
+              glassCardCovers={glassCardCovers}
             />
           ))
         )}
@@ -1348,7 +1438,7 @@ export const Playlists = ({
             {t.cancel}
           </ModalButton>
           <ModalButton primary onClick={handleConfirmDelete} theme={theme}>
-            {t.deleteSong}
+            {t.deletePlaylist}
           </ModalButton>
         </div>
       </Modal>
