@@ -1,6 +1,6 @@
 /* # تنظیم فونت پیش‌فرض برای کل برنامه و المان‌های فرم */
 * {
-  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--app-font, 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
 }
 
 body {
@@ -11,11 +11,68 @@ body {
 
 /* # حذف استایل‌های پیش‌فرض دکمه‌ها و اینپوت‌ها */
 button, input {
-  font-family: inherit; /* ارث‌بری فونت از والد */
+  font-family: inherit;
   outline: none;
 }
 
-/* # زیبا کردن اسکرول‌بار (اختیاری) */
+/* # انیمیشن ساده، سبک و نرم برای تمام دکمه‌ها (بدون تارشدن یا پرش پیکسل در هاور) */
+:where(button, [role="button"], .interactive-tap, label:has(input[type="file"])) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  scale: 1;
+  transition:
+    scale 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(button, [role="button"], .interactive-tap, label:has(input[type="file"])):not(:disabled):not([aria-disabled="true"]):hover {
+    opacity: 0.85;
+  }
+}
+
+:where(button, [role="button"], .interactive-tap, label:has(input[type="file"])):not(:disabled):not([aria-disabled="true"]):active {
+  scale: 0.965;
+  opacity: 0.72;
+  transition-duration: 0.08s;
+}
+
+/* # چرخش نرم دیسک وینیل در پلیر تمام‌صفحه */
+@keyframes spinVinyl {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.vinyl-spin {
+  animation: spinVinyl 18s linear infinite;
+}
+
+.vinyl-spin-paused {
+  animation: spinVinyl 18s linear infinite;
+  animation-play-state: paused;
+}
+
+/* # حالت کاهش انیمیشن */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+html[data-reduce-motion="true"] button:hover,
+html[data-reduce-motion="true"] button:active,
+html[data-reduce-motion="true"] [role="button"]:hover,
+html[data-reduce-motion="true"] [role="button"]:active,
+html[data-reduce-motion="true"] .interactive-tap:hover,
+html[data-reduce-motion="true"] .interactive-tap:active,
+html[data-reduce-motion="true"] label:has(input[type="file"]):hover,
+html[data-reduce-motion="true"] label:has(input[type="file"]):active {
+  scale: 1 !important;
+}
+
+/* # زیبا کردن اسکرول‌بار */
 ::-webkit-scrollbar {
   width: 8px;
 }

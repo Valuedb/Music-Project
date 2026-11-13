@@ -9,10 +9,7 @@ import {
   Trash2,
   Edit2,
   Plus,
-  X,
   Check,
-  ListPlus,
-  ArrowLeft,
   LayoutGrid,
   List,
   Clock,
@@ -136,7 +133,7 @@ const PlaylistMenuButton = ({
         color: theme.colors.textSecondary,
         cursor: 'pointer',
         borderRadius: '50%',
-        transition: 'background-color 0.15s ease, color 0.15s ease',
+        transition: 'background-color 0.15s ease, color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
         zIndex: 2,
         outline: 'none',
       }}
@@ -188,7 +185,7 @@ const MenuItem = ({
         cursor: 'pointer',
         textAlign: 'start',
         color: color ?? theme.colors.textPrimary,
-        transition: 'background-color 0.12s ease',
+        transition: 'background-color 0.12s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
         outline: 'none',
       }}
       onMouseEnter={(e) => {
@@ -505,7 +502,7 @@ const ModalButton = ({
       cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.5 : 1,
       fontWeight: 600,
-      transition: 'filter 0.15s ease, opacity 0.15s ease',
+      transition: 'filter 0.15s ease, opacity 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
     }}
     onMouseEnter={(e) => {
       if (!disabled) {
@@ -749,177 +746,6 @@ const NameModal = ({
   </Modal>
 );
 
-/** ردیف آهنگ داخل صفحه‌ی پلی‌لیست */
-const SongRow = ({
-  song,
-  index,
-  onPlay,
-  onAddToQueue,
-  onRemove,
-  theme,
-  t,
-  glassCardCovers = true,
-}: {
-  song: Song;
-  index: number;
-  onPlay: () => void;
-  onAddToQueue: () => void;
-  onRemove: (e: React.MouseEvent) => void;
-  theme: any;
-  t: any;
-  glassCardCovers?: boolean;
-}) => {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <div
-      onClick={onPlay}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        direction: 'ltr',
-        textAlign: 'left',
-        gap: 12,
-        padding: '8px 12px',
-        marginBottom: 8,
-        position: 'relative',
-        overflow: 'hidden',
-        border: `1px solid ${hovered ? (theme.isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)') : theme.colors.border}`,
-        cursor: 'pointer',
-        borderRadius: '14px',
-        backgroundColor: hovered
-          ? (theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.85)')
-          : glassCardCovers
-          ? (theme.isDark ? 'rgba(18, 14, 32, 0.45)' : 'rgba(255, 255, 255, 0.55)')
-          : theme.colors.surface,
-        backdropFilter: 'blur(20px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-        transition: 'all 0.2s',
-      }}
-    >
-      {/* پس‌زمینه کاور شیشه‌ای روی کارت */}
-      {glassCardCovers && song.cover && (
-        <>
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: `url(${song.cover})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(12px) brightness(0.65) saturate(180%)',
-              transform: 'scale(1.25)',
-              opacity: theme.isDark ? 0.6 : 0.4,
-              zIndex: 0,
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: theme.isDark
-                ? 'linear-gradient(90deg, rgba(14, 11, 26, 0.72) 0%, rgba(22, 18, 40, 0.44) 50%, rgba(14, 11, 26, 0.72) 100%)'
-                : 'linear-gradient(90deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.82) 100%)',
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)',
-              zIndex: 0,
-              pointerEvents: 'none',
-            }}
-          />
-        </>
-      )}
-
-      <span style={{ color: theme.colors.textSecondary, width: 22, flexShrink: 0, position: 'relative', zIndex: 1, fontWeight: 600 }}>
-        {index + 1}
-      </span>
-      <CoverImage
-        src={song.cover}
-        alt=""
-        iconSize={18}
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: '10px',
-          objectFit: 'cover',
-          position: 'relative',
-          zIndex: 1,
-          border: '1px solid rgba(255, 255, 255, 0.22)',
-          boxShadow: '0 3px 8px rgba(0,0,0,0.25)',
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
-        <div
-          style={{
-            fontWeight: '600',
-            color: theme.colors.textPrimary,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            textShadow: theme.isDark ? '0 1px 4px rgba(0,0,0,0.9)' : '0 1px 2px rgba(255,255,255,0.8)',
-          }}
-        >
-          {song.name}
-        </div>
-        <div
-          style={{
-            fontSize: 13,
-            color: theme.isDark ? 'rgba(255, 255, 255, 0.72)' : theme.colors.textSecondary,
-            textShadow: theme.isDark ? '0 1px 3px rgba(0,0,0,0.8)' : 'none',
-          }}
-        >
-          {song.artist}
-        </div>
-      </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onAddToQueue();
-        }}
-        title={t.addToQueue}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: hovered ? theme.colors.primary : theme.colors.textSecondary,
-          cursor: 'pointer',
-          padding: 6,
-          position: 'relative',
-          zIndex: 1,
-          transition: 'all 0.15s',
-        }}
-      >
-        <ListPlus size={18} />
-      </button>
-      <button
-        onClick={onRemove}
-        title={t.deleteSong}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: theme.colors.danger,
-          cursor: 'pointer',
-          padding: 6,
-          position: 'relative',
-          zIndex: 1,
-          borderRadius: theme.radius.sm,
-          transition: 'background-color 0.15s ease, opacity 0.15s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }}
-      >
-        <X size={18} />
-      </button>
-    </div>
-  );
-};
-
 /** دکمه‌ی سوییچ حالت نمایش */
 const ViewToggle = ({
   active,
@@ -946,7 +772,7 @@ const ViewToggle = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transition: 'background-color 0.15s ease, color 0.15s ease',
+        transition: 'background-color 0.15s ease, color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
         outline: 'none',
       }}
       onMouseEnter={(e) => {
@@ -1277,21 +1103,6 @@ export const Playlists = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [activeMenuId]);
 
-  // پخش کل پلی‌لیست از اولین آهنگ
-  const handlePlayAll = () => {
-    if (!activePlaylist || activePlaylist.songs.length === 0) return;
-    onPlaySongFromList(activePlaylist.songs[0], activePlaylist.songs);
-  };
-
-  // حذف یک آهنگ از پلی‌لیست فعال (با تأیید)
-  const handleRemoveSong = (e: React.MouseEvent, songId: string) => {
-    e.stopPropagation();
-    if (!activePlaylist) return;
-    if (!window.confirm(t.deleteConfirm)) return;
-    const updated = activePlaylist.songs.filter((s) => s.id !== songId);
-    onUpdatePlaylistSongs(activePlaylist.id, updated);
-  };
-
   // ذخیره نام جدید پس از تغییر نام
   const handleSaveRename = () => {
     if (renameTargetId && renameValue.trim()) {
@@ -1384,135 +1195,76 @@ export const Playlists = ({
     );
   }
 
-  // ---------- صفحه‌ی داخلی پلی‌لیست ----------
+  // ---------- صفحه‌ی داخلی پلی‌لیست (یکپارچه با AllSongs) ----------
   if (activePlaylist) {
     return (
-      <div
-        ref={pageRef}
-        style={{
-          flex: 1,
-          padding: 'clamp(16px, 3vw, 40px)',
-          paddingBottom: 130,
-          overflowY: 'auto',
-          direction: isRTL ? 'rtl' : 'ltr',
-        }}
-      >
-        <button
-          onClick={() => setActivePlaylistId(null)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: theme.colors.primary,
-            cursor: 'pointer',
-            marginBottom: 20,
-            fontSize: 15,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            transition: 'transform 0.2s',
+      <>
+        <AllSongs
+          songs={activePlaylist.songs}
+          playlists={playlists}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          onPlaySongFromList={onPlaySongFromList}
+          onCreatePlaylist={onCreatePlaylist}
+          addToQueue={addToQueue}
+          onDeleteSong={(songId) =>
+            onUpdatePlaylistSongs(
+              activePlaylist.id,
+              activePlaylist.songs.filter((s) => s.id !== songId)
+            )
+          }
+          onBulkDeleteSongs={(ids) => {
+            const idSet = new Set(ids);
+            onUpdatePlaylistSongs(
+              activePlaylist.id,
+              activePlaylist.songs.filter((s) => !idSet.has(s.id))
+            );
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateX(-5px)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateX(0)')}
-        >
-          <ArrowLeft size={18} style={{ transform: isRTL ? 'rotate(180deg)' : 'none' }} />
-          {t.back}
-        </button>
-
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 24,
-          }}
-        >
-          <h1
-            style={{
-              fontSize: 'clamp(24px, 4vw, 32px)',
-              fontWeight: 'bold',
-              color: theme.colors.textPrimary,
-              marginInlineEnd: 'auto',
-            }}
-          >
-            {activePlaylist.name}
-          </h1>
-
-          <button
-            onClick={handlePlayAll}
-            disabled={activePlaylist.songs.length === 0}
-            style={{
-              background: theme.colors.primary,
-              color: '#fff',
-              border: 'none',
-              padding: '10px 18px',
-              borderRadius: theme.radius.xl,
-              cursor: activePlaylist.songs.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: activePlaylist.songs.length === 0 ? 0.5 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontWeight: 'bold',
-              transition: 'filter 0.15s ease, opacity 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (activePlaylist.songs.length > 0) {
-                e.currentTarget.style.filter = 'brightness(1.12)';
-              }
-            }}
-            onMouseLeave={(e) => (e.currentTarget.style.filter = 'none')}
-          >
-            <Play size={18} fill="#fff" /> {t.playAll}
-          </button>
-
-          <button
-            onClick={() => {
-              setAddSongTargetId(activePlaylist.id);
-              setAddSongOpen(true);
-            }}
-            style={{
-              background: theme.colors.surface,
-              color: theme.colors.textPrimary,
-              border: `1px solid ${theme.colors.border}`,
-              padding: '10px 18px',
-              borderRadius: theme.radius.xl,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontWeight: 'bold',
-              transition: 'background-color 0.15s ease, border-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
-              e.currentTarget.style.borderColor = theme.colors.primary;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = theme.colors.surface;
-              e.currentTarget.style.borderColor = theme.colors.border;
-            }}
-          >
-            <Plus size={18} /> {t.addSong}
-          </button>
-        </div>
-
-        {activePlaylist.songs.length === 0 ? (
-          <p style={{ color: theme.colors.textSecondary }}>—</p>
-        ) : (
-          activePlaylist.songs.map((song, index) => (
-            <SongRow
-              key={song.id}
-              song={song}
-              index={index}
-              onPlay={() => onPlaySongFromList(song, activePlaylist.songs)}
-              onAddToQueue={() => addToQueue(song)}
-              onRemove={(e) => handleRemoveSong(e, song.id)}
-              theme={theme}
-              t={t}
-              glassCardCovers={glassCardCovers}
-            />
-          ))
-        )}
+          deleteActionLabel={t.removeFromPlaylist || 'حذف از پلی‌لیست'}
+          onUpdateSong={onUpdateSong ?? (() => {})}
+          onAddSongToPlaylist={onAddSongToPlaylist ?? (() => {})}
+          onToggleFavorite={onToggleFavorite}
+          t={t}
+          theme={theme}
+          title={activePlaylist.name}
+          onBack={() => setActivePlaylistId(null)}
+          emptyMessage={t.noSongs || '—'}
+          glassCardCovers={glassCardCovers}
+          headerActions={
+            <button
+              onClick={() => {
+                setAddSongTargetId(activePlaylist.id);
+                setAddSongOpen(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.border}`,
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.textPrimary,
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '13px',
+                transition: 'background-color 0.15s ease, border-color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor =
+                  theme.colors.surfaceHover || 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.borderColor = theme.colors.primary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.surface;
+                e.currentTarget.style.borderColor = theme.colors.border;
+              }}
+            >
+              <Plus size={15} />
+              <span>{t.addSong}</span>
+            </button>
+          }
+        />
 
         <AddSongModal
           open={addSongOpen}
@@ -1526,7 +1278,7 @@ export const Playlists = ({
           theme={theme}
           t={t}
         />
-      </div>
+      </>
     );
   }
 
@@ -1536,92 +1288,22 @@ export const Playlists = ({
       ref={pageRef}
       style={{
         flex: 1,
-        padding: 'clamp(16px, 3vw, 40px)',
-        paddingBottom: 160,
+        padding: 'clamp(10px, 1.8vw, 18px) clamp(14px, 3.5vw, 36px)',
+        paddingBottom: 150,
         overflowY: 'auto',
+        overflowX: 'hidden',
+        boxSizing: 'border-box',
         direction: isRTL ? 'rtl' : 'ltr',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 'clamp(24px, 4vw, 32px)',
-            fontWeight: 'bold',
-            color: theme.colors.textPrimary,
-          }}
-        >
-          {t.playlists}
-        </h1>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: theme.colors.background,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: theme.radius.md,
-              padding: 3,
-            }}
-          >
-            <ViewToggle
-              active={viewMode === 'grid'}
-              onClick={() => setViewMode('grid')}
-              icon={<LayoutGrid size={16} />}
-              theme={theme}
-            />
-            <ViewToggle
-              active={viewMode === 'list'}
-              onClick={() => setViewMode('list')}
-              icon={<List size={16} />}
-              theme={theme}
-            />
-          </div>
-
-          <button
-            onClick={() => setCreateOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: theme.colors.primary,
-              color: '#fff',
-              border: 'none',
-              padding: '10px 18px',
-              borderRadius: theme.radius.md,
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              boxShadow: `0 2px 10px ${theme.colors.primary}44`,
-              transition: 'filter 0.15s ease, opacity 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.filter = 'brightness(1.12)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.filter = 'none';
-            }}
-          >
-            <Plus size={18} /> {t.createPlaylist}
-          </button>
-        </div>
-      </div>
-
       {/* بخش ۱: پلی‌لیست‌های هوشمند */}
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 24 }}>
         <h2
           style={{
             fontSize: '15px',
             fontWeight: 700,
             color: theme.colors.textSecondary,
-            margin: '0 0 14px 0',
+            margin: '0 0 12px 0',
           }}
         >
           {t.smartPlaylists || 'پلی‌لیست‌های هوشمند'}
@@ -1630,7 +1312,7 @@ export const Playlists = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
             gap: 14,
           }}
         >
@@ -1704,16 +1386,80 @@ export const Playlists = ({
       </div>
 
       {/* بخش ۲: پلی‌لیست‌های شخصی کاربر */}
-      <h2
+      <div
         style={{
-          fontSize: '15px',
-          fontWeight: 700,
-          color: theme.colors.textSecondary,
-          margin: '0 0 14px 0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 14,
         }}
       >
-        {t.myPlaylists || 'پلی‌لیست‌های من'}
-      </h2>
+        <h2
+          style={{
+            fontSize: '15px',
+            fontWeight: 700,
+            color: theme.colors.textSecondary,
+            margin: 0,
+          }}
+        >
+          {t.myPlaylists || 'پلی‌لیست‌های من'}
+        </h2>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              backgroundColor: theme.colors.background,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius.md,
+              padding: 3,
+            }}
+          >
+            <ViewToggle
+              active={viewMode === 'grid'}
+              onClick={() => setViewMode('grid')}
+              icon={<LayoutGrid size={16} />}
+              theme={theme}
+            />
+            <ViewToggle
+              active={viewMode === 'list'}
+              onClick={() => setViewMode('list')}
+              icon={<List size={16} />}
+              theme={theme}
+            />
+          </div>
+
+          <button
+            onClick={() => setCreateOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: theme.colors.primary,
+              color: '#fff',
+              border: 'none',
+              padding: '9px 16px',
+              borderRadius: theme.radius.md,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '13.5px',
+              boxShadow: `0 2px 10px ${theme.colors.primary}44`,
+              transition: 'filter 0.15s ease, opacity 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.filter = 'brightness(1.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.filter = 'none';
+            }}
+          >
+            <Plus size={17} /> {t.createPlaylist}
+          </button>
+        </div>
+      </div>
 
       {playlists.length === 0 ? (
         <p style={{ color: theme.colors.textSecondary }}>{t.noPlaylists || '—'}</p>
@@ -1721,7 +1467,7 @@ export const Playlists = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))',
             gap: 16,
           }}
         >

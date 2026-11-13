@@ -45,7 +45,7 @@ export const VolumeSlider = memo(({
           color: isMuted ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.7)',
           display: 'flex',
           alignItems: 'center',
-          transition: 'color 0.2s',
+          transition: 'color 0.2s, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
         {isMuted ? <VolumeX size={18} /> : <Volume1 size={18} />}

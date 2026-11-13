@@ -53,6 +53,64 @@ export interface EqualizerSettings {
 
 export type SleepTimerState =
   | { mode: 'off' }
-  | { mode: 'until'; endsAt: number }
+  | { mode: 'until'; endsAt: number; durationMinutes?: number }
   | { mode: 'songEnd' };
 
+export type ReverbRoom = 'off' | 'studio' | 'hall' | 'cathedral';
+export type AudioOutputProfile = 'default' | 'headphones' | 'speaker';
+export type EqBandMode = '5band' | '10band';
+
+export interface SoundProfileSnapshot {
+  eq: EqualizerSettings;
+  bands10: number[];
+  eqMode: EqBandMode;
+  preampDb: number;
+  spatialSurround: number;
+  reverbRoom: ReverbRoom;
+  reverbMix: number;
+}
+
+export interface SoundSettings {
+  crossfadeSeconds: number;
+  fadeOnPlayPause: boolean;
+  gaplessPlayback: boolean;
+  playbackSpeed: number;
+  preservePitch: boolean;
+  reverbRoom: ReverbRoom;
+  reverbMix: number;
+  spatialSurround: number;
+  volumeNormalization: boolean;
+  stereoBalance: number;
+  monoAudio: boolean;
+  preampDb: number;
+  maxVolumeLimit: number;
+  eqMode: EqBandMode;
+  bands10: number[];
+  outputProfile: AudioOutputProfile;
+  profilePresets: Partial<Record<AudioOutputProfile, SoundProfileSnapshot>>;
+  liveVisualizer: boolean;
+}
+
+export type FontChoice = 'vazirmatn' | 'system' | 'editorial';
+export type ListDensity = 'compact' | 'comfortable' | 'spacious';
+export type CornerStyle = 'sharp' | 'balanced' | 'pill';
+export type PlayerBarStyle = 'floating' | 'docked';
+export type ArtworkStyle = 'classic' | 'vinyl';
+export type VisualizerStyle = 'bars' | 'wave' | 'ring';
+
+export interface DisplaySettings {
+  adaptiveArtworkAccent: boolean;
+  adaptiveArtworkWallpaper: boolean;
+  fontFamily: FontChoice;
+  fontScale: number;
+  listDensity: ListDensity;
+  cornerStyle: CornerStyle;
+  glassOpacity: number;
+  glassBlur: number;
+  oledPureBlack: boolean;
+  ambientGlow: boolean;
+  playerBarStyle: PlayerBarStyle;
+  artworkStyle: ArtworkStyle;
+  visualizerStyle: VisualizerStyle;
+  reduceMotion: boolean;
+}

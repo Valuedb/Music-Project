@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Heart, Shuffle, Trash2, GripVertical, X, ListMusic, Music } from 'lucide-react';
-import type { RepeatMode, Song } from '../types';
+import type { ArtworkStyle, RepeatMode, Song, VisualizerStyle } from '../types';
 import { withAlpha } from '../utils/color';
 import { CoverImage } from './CoverImage';
+import { audioEffects } from '../player/audioEffects';
 
 interface FullScreenPlayerProps {
   isOpen: boolean;
@@ -30,9 +31,131 @@ interface FullScreenPlayerProps {
   onPlayQueueSong?: (index: number) => void;
   onClearQueue?: () => void;
   onShuffleQueue?: () => void;
+  liveVisualizer?: boolean;
+  artworkStyle?: ArtworkStyle;
+  visualizerStyle?: VisualizerStyle;
   t: any;
   theme: any;
 }
+
+const FullScreenVisualizer: React.FC<{
+  active: boolean;
+  color: string;
+  variant: VisualizerStyle;
+}> = ({ active, color, variant }) => {
+  const barRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const barCount = variant === 'wave' ? 32 : 28;
+
+  useEffect(() => {
+    if (variant === 'ring') return;
+    if (!active) {
+      barRefs.current.forEach((bar) => {
+        if (bar) {
+          bar.style.transform = 'scaleY(0.14)';
+          bar.style.opacity = '0.32';
+          bar.style.boxShadow = 'none';
+        }
+      });
+      return;
+    }
+
+    let rafId = 0;
+    const bins = new Uint8Array(audioEffects.getFrequencyBinCount() || 128);
+    const smoothed = new Float32Array(barCount);
+    const glowTint = withAlpha(color, 0.55);
+
+    const tick = (now: number) => {
+      const ok = audioEffects.getFrequencyData(bins);
+      const mid = (barCount - 1) / 2;
+      const maxMusicalBin = Math.min(bins.length - 1, 52);
+      let maxEnergy = 0;
+      if (ok) {
+        for (let b = 0; b <= maxMusicalBin; b++) {
+          if (bins[b] > maxEnergy) maxEnergy = bins[b];
+        }
+      }
+
+      for (let i = 0; i < barCount; i++) {
+        const bar = barRefs.current[i];
+        if (!bar) continue;
+
+        let target: number;
+        if (!ok || maxEnergy === 0) {
+          // نبض ملایم در زمان مکث کوتاه یا در دسترس‌نبودن لحظه‌ای آنالایزر
+          const phase = now * 0.0042 + i * 0.42;
+          const wave = 0.5 + 0.5 * Math.sin(phase) * Math.cos(phase * 0.55);
+          target = 0.18 + wave * 0.34;
+        } else {
+          const linearPos =
+            variant === 'wave'
+              ? Math.abs(i - mid) / Math.max(1, mid)
+              : i / Math.max(1, barCount - 1);
+          const curvedPos = Math.pow(linearPos, 1.55);
+          const binIdx = Math.min(
+            maxMusicalBin,
+            Math.floor(curvedPos * maxMusicalBin)
+          );
+          const nextBin = Math.min(maxMusicalBin, binIdx + 1);
+          const raw = (bins[binIdx] * 0.72 + bins[nextBin] * 0.28) / 255;
+          const boosted = Math.pow(raw, 0.72) * (1.06 + linearPos * 0.24);
+          target = Math.max(0.14, Math.min(1, boosted));
+        }
+
+        // حمله سریع و افت نرم برای حرکت طبیعی اکولایزر
+        const prev = smoothed[i] || 0.14;
+        const rate = target > prev ? 0.52 : 0.24;
+        const nextVal = prev + (target - prev) * rate;
+        smoothed[i] = nextVal;
+
+        bar.style.transform = `scaleY(${nextVal.toFixed(3)})`;
+        bar.style.opacity = (0.36 + nextVal * 0.64).toFixed(2);
+        bar.style.boxShadow = nextVal > 0.66 ? `0 0 10px ${glowTint}` : 'none';
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [active, barCount, color, variant]);
+
+  if (variant === 'ring') return null;
+
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        display: 'flex',
+        alignItems: variant === 'wave' ? 'center' : 'flex-end',
+        justifyContent: 'center',
+        gap: variant === 'wave' ? '4px' : '4px',
+        height: variant === 'wave' ? '36px' : '34px',
+        width: variant === 'wave' ? 'min(268px, 74vw)' : 'min(252px, 70vw)',
+        margin: '12px auto 0',
+        opacity: active ? 1 : 0.42,
+        transition: 'opacity 0.25s ease',
+      }}
+    >
+      {Array.from({ length: barCount }).map((_, idx) => (
+        <div
+          key={idx}
+          ref={(el) => {
+            barRefs.current[idx] = el;
+          }}
+          style={{
+            flex: 1,
+            maxWidth: '5px',
+            height: '100%',
+            borderRadius: '999px',
+            background: `linear-gradient(to top, ${withAlpha(color, 0.68)}, ${color})`,
+            transformOrigin: variant === 'wave' ? 'center' : 'bottom',
+            transform: 'scaleY(0.14)',
+            opacity: 0.35,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
 
 export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
   isOpen,
@@ -58,6 +181,9 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
   onPlayQueueSong,
   onClearQueue,
   onShuffleQueue,
+  liveVisualizer = true,
+  artworkStyle = 'classic',
+  visualizerStyle = 'bars',
   t,
   theme,
 }) => {
@@ -72,6 +198,58 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
   const currentSongRowRef = useRef<HTMLDivElement>(null);
+  const ringHaloRef = useRef<HTMLDivElement>(null);
+  const ringInnerHaloRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
+
+  useEffect(() => {
+    if (!liveVisualizer || visualizerStyle !== 'ring' || !isOpen || !isPlaying || showQueue) {
+      if (ringHaloRef.current) {
+        ringHaloRef.current.style.transform = 'scale(1)';
+        ringHaloRef.current.style.opacity = '0';
+      }
+      if (ringInnerHaloRef.current) {
+        ringInnerHaloRef.current.style.transform = 'scale(1)';
+        ringInnerHaloRef.current.style.opacity = '0';
+      }
+      return;
+    }
+
+    let rafId = 0;
+    const bins = new Uint8Array(audioEffects.getFrequencyBinCount() || 128);
+    let smoothBass = 0;
+    let smoothMid = 0;
+    const tick = (now: number) => {
+      const ok = audioEffects.getFrequencyData(bins);
+      let bass = 0;
+      let mid = 0;
+      if (!ok) {
+        bass = 0.25 + 0.18 * Math.sin(now * 0.005);
+        mid = 0.2 + 0.15 * Math.cos(now * 0.006);
+      } else {
+        for (let i = 0; i < 6; i++) bass += bins[i] || 0;
+        for (let i = 6; i < 24; i++) mid += bins[i] || 0;
+        bass = Math.pow(bass / (6 * 255), 0.78);
+        mid = Math.pow(mid / (18 * 255), 0.75);
+      }
+
+      smoothBass += (bass - smoothBass) * (bass > smoothBass ? 0.55 : 0.25);
+      smoothMid += (mid - smoothMid) * (mid > smoothMid ? 0.5 : 0.25);
+
+      if (ringHaloRef.current) {
+        ringHaloRef.current.style.transform = `scale(${(1 + smoothBass * 0.22).toFixed(3)})`;
+        ringHaloRef.current.style.opacity = (0.32 + smoothBass * 0.68).toFixed(2);
+      }
+      if (ringInnerHaloRef.current) {
+        ringInnerHaloRef.current.style.transform = `scale(${(1 + smoothMid * 0.13).toFixed(3)})`;
+        ringInnerHaloRef.current.style.opacity = (0.28 + smoothMid * 0.65).toFixed(2);
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [liveVisualizer, visualizerStyle, isOpen, isPlaying, showQueue]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -168,11 +346,42 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
     <AnimatePresence>
       {isOpen && currentSong && (
         <motion.div
-          key="full-screen-player"
+          key="full-screen-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.28, ease: [0.32, 0.72, 0, 1] } }}
-          transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+          exit={{ opacity: 0, transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] } }}
+          transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+          onClick={onClose}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999998,
+            backgroundColor: 'rgba(0, 0, 0, 0.58)',
+          }}
+        />
+      )}
+      {isOpen && currentSong && (
+        <motion.div
+          key="full-screen-player"
+          initial={{ y: '100%', scale: 0.96, borderRadius: '28px' }}
+          animate={{ y: 0, scale: 1, borderRadius: '0px' }}
+          exit={{
+            y: '100%',
+            scale: 0.96,
+            borderRadius: '28px',
+            transition: { duration: 0.36, ease: [0.32, 0.72, 0, 1] },
+          }}
+          transition={{ duration: 0.44, ease: [0.22, 1, 0.36, 1] }}
+          drag="y"
+          dragControls={dragControls}
+          dragListener={false}
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0.04, bottom: 0.65 }}
+          onDragEnd={(_, info) => {
+            if (info.offset.y > 110 || info.velocity.y > 380) {
+              onClose();
+            }
+          }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -183,15 +392,17 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
             flexDirection: 'column',
             overflow: 'hidden',
             direction: 'ltr',
+            boxShadow: '0 -12px 48px rgba(0, 0, 0, 0.65)',
+            transformOrigin: 'center bottom',
           }}
         >
           {/* پس‌زمینه محو داینامیک کاور */}
           {currentSong.cover && !coverError ? (
             <motion.div
-              initial={{ opacity: 0, scale: 1.44 }}
+              initial={{ opacity: 0, scale: 1.42 }}
               animate={{ opacity: 1, scale: 1.3 }}
-              exit={{ opacity: 0, scale: 1.38 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              exit={{ opacity: 0, scale: 1.36 }}
+              transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -207,7 +418,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.36 }}
+              transition={{ duration: 0.38 }}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -220,19 +431,13 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
             style={{
               position: 'absolute',
               inset: 0,
-              backgroundColor: 'rgba(12, 12, 16, 0.55)',
-              backdropFilter: 'blur(30px)',
-              WebkitBackdropFilter: 'blur(30px)',
+              backgroundColor: 'rgba(12, 12, 16, 0.56)',
               pointerEvents: 'none',
             }}
           />
 
           {/* محتوای داخلی تمام‌صفحه */}
-          <motion.div
-            initial={{ opacity: 0, y: 44, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 36, scale: 0.96, transition: { duration: 0.25, ease: [0.32, 0.72, 0, 1] } }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          <div
             style={{
               position: 'relative',
               zIndex: 2,
@@ -250,7 +455,25 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
             }}
           >
             {/* هدر: دستگیره کشویی، دکمه بستن، عنوان و گزینه‌های علاقه‌مندی و صف */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', flexShrink: 0 }}>
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.18 } }}
+              transition={{ duration: 0.34, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+              onPointerDown={(e) => {
+                if ((e.target as HTMLElement).closest('button')) return;
+                dragControls.start(e);
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '100%',
+                flexShrink: 0,
+                touchAction: 'none',
+                cursor: 'grab',
+              }}
+            >
               <button
                 onClick={onClose}
                 aria-label="Close"
@@ -283,7 +506,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                     borderRadius: '50%',
                     backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     color: '#ffffff',
-                    transition: 'background-color 0.2s',
+                    transition: 'background-color 0.2s, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                     zIndex: 2,
                   }}
                 >
@@ -374,7 +597,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* محتوای وسط: کاور + عنوان یا صف پخش */}
             <div
@@ -642,7 +865,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.86, y: 14 }}
+                    initial={{ opacity: 0, scale: 0.76, y: 32 }}
                     animate={{
                       opacity: 1,
                       scale: isPlaying ? 1 : 0.88,
@@ -650,8 +873,8 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                     }}
                     exit={{
                       opacity: 0,
-                      scale: 0.9,
-                      y: 14,
+                      scale: 0.84,
+                      y: 22,
                       transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] },
                     }}
                     transition={{
@@ -661,12 +884,43 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                       mass: 0.8,
                     }}
                     style={{
+                      position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       transformOrigin: 'center center',
                     }}
                   >
+                    {liveVisualizer && visualizerStyle === 'ring' && (
+                      <>
+                        <div
+                          ref={ringHaloRef}
+                          aria-hidden="true"
+                          style={{
+                            position: 'absolute',
+                            inset: '-18px',
+                            borderRadius: artworkStyle === 'vinyl' ? '50%' : theme?.radius?.xl || '30px',
+                            border: `2px solid ${withAlpha(primaryColor, 0.72)}`,
+                            boxShadow: `0 0 38px ${withAlpha(primaryColor, 0.56)}`,
+                            pointerEvents: 'none',
+                            opacity: 0,
+                          }}
+                        />
+                        <div
+                          ref={ringInnerHaloRef}
+                          aria-hidden="true"
+                          style={{
+                            position: 'absolute',
+                            inset: '-8px',
+                            borderRadius: artworkStyle === 'vinyl' ? '50%' : theme?.radius?.xl || '24px',
+                            border: `1.5px solid ${withAlpha(primaryColor, 0.5)}`,
+                            boxShadow: `inset 0 0 18px ${withAlpha(primaryColor, 0.35)}`,
+                            pointerEvents: 'none',
+                            opacity: 0,
+                          }}
+                        />
+                      </>
+                    )}
                     <motion.div
                       animate={{
                         boxShadow: isPlaying
@@ -674,12 +928,23 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                           : '0 10px 24px rgba(0,0,0,0.35)',
                       }}
                       transition={{ duration: 0.35 }}
+                      className={
+                        artworkStyle === 'vinyl'
+                          ? isPlaying
+                            ? 'vinyl-spin'
+                            : 'vinyl-spin-paused'
+                          : undefined
+                      }
                       style={{
+                        position: 'relative',
                         width: 'min(230px, 58vw, 29vh)',
                         height: 'min(230px, 58vw, 29vh)',
-                        borderRadius: '20px',
+                        borderRadius: artworkStyle === 'vinyl' ? '50%' : theme?.radius?.xl || '20px',
                         overflow: 'hidden',
-                        border: '1px solid rgba(255, 255, 255, 0.14)',
+                        border:
+                          artworkStyle === 'vinyl'
+                            ? '6px solid rgba(20, 20, 26, 0.92)'
+                            : '1px solid rgba(255, 255, 255, 0.14)',
                         backgroundColor: 'rgba(255, 255, 255, 0.05)',
                         display: 'flex',
                         alignItems: 'center',
@@ -700,6 +965,33 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                         />
                       ) : (
                         <Music size={56} color="rgba(255, 255, 255, 0.35)" strokeWidth={1.4} />
+                      )}
+                      {artworkStyle === 'vinyl' && (
+                        <>
+                          <div
+                            aria-hidden="true"
+                            style={{
+                              position: 'absolute',
+                              inset: '14%',
+                              borderRadius: '50%',
+                              border: '1px solid rgba(255,255,255,0.14)',
+                              pointerEvents: 'none',
+                            }}
+                          />
+                          <div
+                            aria-hidden="true"
+                            style={{
+                              position: 'absolute',
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              backgroundColor: '#121216',
+                              border: '3px solid rgba(255, 255, 255, 0.35)',
+                              boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.8)',
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        </>
                       )}
                     </motion.div>
                   </motion.div>
@@ -748,6 +1040,13 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                     >
                       {currentSong.artist}
                     </div>
+                    {liveVisualizer && (
+                      <FullScreenVisualizer
+                        active={isOpen && isPlaying && !showQueue}
+                        color={primaryColor}
+                        variant={visualizerStyle}
+                      />
+                    )}
                   </motion.div>
                 </div>
               )}
@@ -755,14 +1054,14 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
 
             {/* کنترل‌های پخش، نوار زمان و ولوم */}
             <motion.div
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{
                 opacity: 0,
-                y: 12,
-                transition: { duration: 0.2, ease: [0.32, 0.72, 0, 1] },
+                y: 16,
+                transition: { duration: 0.18, ease: [0.32, 0.72, 0, 1] },
               }}
-              transition={{ duration: 0.36, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.38, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
               style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: isMobile ? '12px' : '16px', flexShrink: 0 }}
             >
               {/* نوار پیشرفت زمان */}
@@ -1060,7 +1359,7 @@ export const FullScreenPlayer: React.FC<FullScreenPlayerProps> = memo(({
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>,

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PLAY_COUNT_THRESHOLD_SECONDS } from '../player/constants';
-import type { RepeatMode, SleepTimerState, Song } from '../types';
+import type { DisplaySettings, RepeatMode, SleepTimerState, Song, SoundSettings } from '../types';
 import { FullScreenPlayer } from './FullScreenPlayer';
 import { QueueDrawer } from './QueueDrawer';
 import { CoverImage } from './CoverImage';
 import { syncMediaSession, syncMediaSessionPosition } from '../utils/mediaSession';
-import { audioEffects } from '../player/audioEffects';
+import { DEFAULT_SOUND_SETTINGS, audioEffects } from '../player/audioEffects';
+import { DEFAULT_DISPLAY_SETTINGS } from '../theme';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { STORAGE_KEYS } from '../storage/keys';
 import { readJSON, writeJSON } from '../storage/safeStorage';
@@ -34,10 +35,11 @@ const getBarPalette = (isDark: boolean) =>
         iconHover: '#000000',
       };
 
-/** افکت لمس/کلیک دکمه‌ها مثل Apple: به‌جای بزرگ‌شدن، کمی کم‌رنگ می‌شوند */
+/** افکت لمس/کلیک نرم و ساده دکمه‌های نوار پخش (بدون تارشدن در هاور) */
 const BUTTON_CSS = `
-.pb-btn { transition: color 0.18s ease, opacity 0.18s ease; }
-.pb-btn:active { opacity: 0.55; }
+.pb-btn { transition: color 0.18s ease, opacity 0.18s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+.pb-btn:hover:not(:disabled) { opacity: 0.82; }
+.pb-btn:active:not(:disabled) { opacity: 0.62; scale: 0.95; transition-duration: 0.08s; }
 `;
 
 interface PlayerBarProps {
@@ -65,7 +67,34 @@ interface PlayerBarProps {
   onOpenSettings?: () => void;
   sleepTimer?: SleepTimerState;
   onClearSleepTimer?: () => void;
+  peekNext?: () => Song | null;
+  soundSettings?: SoundSettings;
+  displaySettings?: DisplaySettings;
 }
+
+type AudioWithPitchFlags = HTMLAudioElement & {
+  preservesPitch?: boolean;
+  webkitPreservesPitch?: boolean;
+  mozPreservesPitch?: boolean;
+};
+
+const applyDeckPlaybackParams = (
+  audio: HTMLAudioElement | null,
+  vol: number,
+  speed: number,
+  preservePitch: boolean
+) => {
+  if (!audio) return;
+  audio.volume = vol;
+  const clampedRate = Math.max(0.5, Math.min(2, speed || 1));
+  if (audio.playbackRate !== clampedRate) {
+    audio.playbackRate = clampedRate;
+  }
+  const flagged = audio as AudioWithPitchFlags;
+  flagged.preservesPitch = preservePitch;
+  flagged.webkitPreservesPitch = preservePitch;
+  flagged.mozPreservesPitch = preservePitch;
+};
 
 export const PlayerBar = ({
   currentSong,
@@ -92,8 +121,22 @@ export const PlayerBar = ({
   onOpenSettings,
   sleepTimer,
   onClearSleepTimer,
+  peekNext,
+  soundSettings = DEFAULT_SOUND_SETTINGS,
+  displaySettings = DEFAULT_DISPLAY_SETTINGS,
 }: PlayerBarProps) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRefA = useRef<HTMLAudioElement>(null);
+  const audioRefB = useRef<HTMLAudioElement>(null);
+  const activeDeckRef = useRef<'A' | 'B'>('A');
+  const getActiveAudio = useCallback(
+    () => (activeDeckRef.current === 'A' ? audioRefA.current : audioRefB.current),
+    []
+  );
+  const getStandbyAudio = useCallback(
+    () => (activeDeckRef.current === 'A' ? audioRefB.current : audioRefA.current),
+    []
+  );
+
   const [isPlaying, setIsPlaying] = useState(false);
 
   const handlePlayState = useCallback(
@@ -117,42 +160,64 @@ export const PlayerBar = ({
   const [isHoveringVolume, setIsHoveringVolume] = useState(false);
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
 
+  const maxVolFactor = Math.max(0.2, Math.min(1, (soundSettings.maxVolumeLimit ?? 100) / 100));
+  const effectiveVolume = Math.min(volume, maxVolFactor);
+
   /** برای هر پخش فقط یک بار playCount زیاد بشه */
   const countedRef = useRef(false);
   const retriedRecoveryRef = useRef<string | null>(null);
   const lastPosSyncRef = useRef(0);
   const lastPlaybackSaveRef = useRef(0);
   const pendingResumeTimeRef = useRef<number | null>(null);
+  const pauseFadeTimerRef = useRef<number | null>(null);
+  const crossfadingToIdRef = useRef<string | null>(null);
+  const crossfadeCleanupTimerRef = useRef<number | null>(null);
+  const preloadedRef = useRef<{ songId: string; url: string } | null>(null);
+  const skipNextLoadRef = useRef<string | null>(null);
   const songUrl = currentSong?.fileUrl ?? null;
 
   // رفرنس‌های پایدار برای جلوگیری از closure کهنه در MediaSession و کلیدهای میانبر
   const playNextRef = useRef(playNext);
   const playPrevRef = useRef(playPrev);
+  const peekNextRef = useRef(peekNext);
   const onToggleFavoriteRef = useRef(onToggleFavorite);
   const songDurationRef = useRef<number>(currentSong?.duration || 0);
 
   useEffect(() => {
     playNextRef.current = playNext;
     playPrevRef.current = playPrev;
+    peekNextRef.current = peekNext;
     onToggleFavoriteRef.current = onToggleFavorite;
     songDurationRef.current = currentSong?.duration || 0;
   });
 
-  // همگام‌سازی ولوم اولیه با المان <audio> و ذخیره آخرین ولوم غیرصفر
+  // همگام‌سازی ولوم ایمن، سرعت پخش و حفظ زیر و بمی روی هر دو دک صوتی
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
-    }
+    applyDeckPlaybackParams(
+      audioRefA.current,
+      effectiveVolume,
+      soundSettings.playbackSpeed,
+      soundSettings.preservePitch
+    );
+    applyDeckPlaybackParams(
+      audioRefB.current,
+      effectiveVolume,
+      soundSettings.playbackSpeed,
+      soundSettings.preservePitch
+    );
     if (volume > 0) {
       lastNonZeroVolumeRef.current = volume;
     }
-  }, [volume]);
+  }, [volume, effectiveVolume, soundSettings.playbackSpeed, soundSettings.preservePitch]);
 
-  // اتصال اکولایزر به المان صوتی
+  // اتصال هر دو دک صوتی به موتور اکولایزر و افکت‌ها
   useEffect(() => {
-    if (audioRef.current) {
-      audioEffects.attach(audioRef.current);
-    }
+    if (audioRefA.current) audioEffects.attach(audioRefA.current);
+    if (audioRefB.current) audioEffects.attach(audioRefB.current);
+    return () => {
+      if (pauseFadeTimerRef.current) window.clearTimeout(pauseFadeTimerRef.current);
+      if (crossfadeCleanupTimerRef.current) window.clearTimeout(crossfadeCleanupTimerRef.current);
+    };
   }, []);
 
   // نمایش نام آهنگ در نوار عنوان پنجره و تسک‌بار ویندوز هنگام پخش
@@ -179,15 +244,54 @@ export const PlayerBar = ({
     }
   }, [currentSong, playToken]);
 
-  // بارگذاری و پخش آهنگ. وابسته به آدرس فایل و playToken است:
-  // اگر playToken == 0 و آهنگی از نشست قبلی بازیابی شده باشد، فقط سورس بارگذاری می‌شود (بدون پخش خودکار ناخواسته).
+  // بارگذاری و پخش آهنگ با پشتیبانی از Crossfade و Gapless و Fade
   useEffect(() => {
-    const audio = audioRef.current;
+    if (currentSong && skipNextLoadRef.current === currentSong.id) {
+      skipNextLoadRef.current = null;
+      preloadedRef.current = null;
+      countedRef.current = false;
+      retriedRecoveryRef.current = null;
+      const active = getActiveAudio();
+      if (active) {
+        setDuration(active.duration || songDurationRef.current || 0);
+        setCurrentTime(active.currentTime || 0);
+      }
+      return;
+    }
+
+    if (crossfadeCleanupTimerRef.current) {
+      window.clearTimeout(crossfadeCleanupTimerRef.current);
+      crossfadeCleanupTimerRef.current = null;
+    }
+    if (pauseFadeTimerRef.current) {
+      window.clearTimeout(pauseFadeTimerRef.current);
+      pauseFadeTimerRef.current = null;
+    }
+    crossfadingToIdRef.current = null;
+    preloadedRef.current = null;
+
+    const standby = getStandbyAudio();
+    if (standby) {
+      audioEffects.cancelDeckFade(standby);
+      standby.pause();
+      standby.removeAttribute('src');
+      standby.load();
+      audioEffects.setDeckGain(standby, 1, 0);
+    }
+
+    const audio = getActiveAudio();
     if (!audio) return;
     countedRef.current = false;
     retriedRecoveryRef.current = null;
     audioEffects.attach(audio);
-    audio.volume = volume;
+    audioEffects.cancelDeckFade(audio);
+    audioEffects.setDeckGain(audio, 1, 0);
+    applyDeckPlaybackParams(
+      audio,
+      effectiveVolume,
+      soundSettings.playbackSpeed,
+      soundSettings.preservePitch
+    );
 
     if (!songUrl) {
       setCurrentTime(0);
@@ -219,12 +323,19 @@ export const PlayerBar = ({
 
     setCurrentTime(0);
     pendingResumeTimeRef.current = null;
+    if (soundSettings.fadeOnPlayPause) {
+      audioEffects.setDeckGain(audio, 0.02, 0);
+    }
     audio
       .play()
       .then(() => {
+        if (soundSettings.fadeOnPlayPause) {
+          audioEffects.setDeckGain(audio, 1, 0.22);
+        }
         handlePlayState(true);
       })
       .catch((err: unknown) => {
+        audioEffects.setDeckGain(audio, 1, 0);
         if (err instanceof DOMException && err.name === 'AbortError') return;
         handlePlayState(false);
         console.error(err);
@@ -236,7 +347,7 @@ export const PlayerBar = ({
   useEffect(() => {
     const savePlaybackPosition = () => {
       if (!currentSong) return;
-      const tPos = audioRef.current?.currentTime ?? currentTime;
+      const tPos = getActiveAudio()?.currentTime ?? currentTime;
       writeJSON(STORAGE_KEYS.lastPlayback, { songId: currentSong.id, currentTime: tPos });
     };
     window.addEventListener('beforeunload', savePlaybackPosition);
@@ -245,12 +356,13 @@ export const PlayerBar = ({
       window.removeEventListener('beforeunload', savePlaybackPosition);
       window.removeEventListener('pagehide', savePlaybackPosition);
     };
-  }, [currentSong, currentTime]);
+  }, [currentSong, currentTime, getActiveAudio]);
 
-  const handleTimeUpdate = () => {
-    const audio = audioRef.current;
+  const handleTimeUpdate = (deck: 'A' | 'B') => {
+    if (deck !== activeDeckRef.current) return;
+    const audio = getActiveAudio();
     if (!audio) return;
-    if (!isPlaying && !audio.paused) {
+    if (!isPlaying && !audio.paused && !pauseFadeTimerRef.current) {
       handlePlayState(true);
     }
     const nowTime = audio.currentTime;
@@ -275,6 +387,84 @@ export const PlayerBar = ({
         onSongPlayed(currentSong.id);
       }
     }
+
+    // مدیریت Crossfade و پیش‌بارگذاری Gapless
+    if (
+      totalDur > 0 &&
+      Number.isFinite(totalDur) &&
+      repeatMode !== 'one' &&
+      sleepTimer?.mode !== 'songEnd'
+    ) {
+      const remaining = totalDur - nowTime;
+      const crossfadeSec = soundSettings.crossfadeSeconds || 0;
+
+      if (
+        crossfadeSec > 0 &&
+        totalDur > crossfadeSec * 2 + 2 &&
+        remaining <= crossfadeSec &&
+        remaining > 0.25 &&
+        !crossfadingToIdRef.current
+      ) {
+        const nextSong = peekNextRef.current?.() ?? null;
+        const standby = getStandbyAudio();
+        if (nextSong && standby) {
+          crossfadingToIdRef.current = nextSong.id;
+          const outgoing = audio;
+          const nextDeck: 'A' | 'B' = activeDeckRef.current === 'A' ? 'B' : 'A';
+          audioEffects.attach(standby);
+          applyDeckPlaybackParams(
+            standby,
+            effectiveVolume,
+            soundSettings.playbackSpeed,
+            soundSettings.preservePitch
+          );
+          if (preloadedRef.current?.songId !== nextSong.id) {
+            standby.src = nextSong.fileUrl;
+            standby.currentTime = 0;
+          }
+          audioEffects.setDeckGain(standby, 0.001, 0);
+          activeDeckRef.current = nextDeck;
+          skipNextLoadRef.current = nextSong.id;
+
+          const fadeDur = Math.max(0.4, Math.min(crossfadeSec, remaining));
+          standby
+            .play()
+            .then(() => {
+              audioEffects.setDeckGain(standby, 1, fadeDur);
+              audioEffects.setDeckGain(outgoing, 0, fadeDur);
+              crossfadeCleanupTimerRef.current = window.setTimeout(() => {
+                outgoing.pause();
+                outgoing.removeAttribute('src');
+                outgoing.load();
+                audioEffects.setDeckGain(outgoing, 1, 0);
+                crossfadingToIdRef.current = null;
+              }, fadeDur * 1000 + 80);
+              playNextRef.current();
+            })
+            .catch(() => {
+              activeDeckRef.current = nextDeck === 'A' ? 'B' : 'A';
+              skipNextLoadRef.current = null;
+              crossfadingToIdRef.current = null;
+              audioEffects.setDeckGain(standby, 1, 0);
+            });
+        }
+      } else if (
+        crossfadeSec === 0 &&
+        soundSettings.gaplessPlayback &&
+        totalDur > 5 &&
+        remaining <= 3.5 &&
+        remaining > 0.2
+      ) {
+        const nextSong = peekNextRef.current?.() ?? null;
+        const standby = getStandbyAudio();
+        if (nextSong && standby && preloadedRef.current?.songId !== nextSong.id) {
+          preloadedRef.current = { songId: nextSong.id, url: nextSong.fileUrl };
+          standby.src = nextSong.fileUrl;
+          standby.preload = 'auto';
+          standby.load();
+        }
+      }
+    }
   };
 
   const formatTime = (time: number) => {
@@ -285,16 +475,43 @@ export const PlayerBar = ({
   };
 
   const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = getActiveAudio();
     if (!audio || !currentSong) return;
     audioEffects.resumeContext();
+    if (pauseFadeTimerRef.current) {
+      window.clearTimeout(pauseFadeTimerRef.current);
+      pauseFadeTimerRef.current = null;
+    }
+
     if (audio.paused) {
-      audio.play().then(() => handlePlayState(true)).catch(console.error);
+      if (soundSettings.fadeOnPlayPause) {
+        audioEffects.setDeckGain(audio, 0.02, 0);
+      } else {
+        audioEffects.setDeckGain(audio, 1, 0);
+      }
+      audio
+        .play()
+        .then(() => {
+          if (soundSettings.fadeOnPlayPause) {
+            audioEffects.setDeckGain(audio, 1, 0.2);
+          }
+          handlePlayState(true);
+        })
+        .catch(console.error);
+    } else if (soundSettings.fadeOnPlayPause) {
+      audioEffects.setDeckGain(audio, 0, 0.17);
+      handlePlayState(false);
+      pauseFadeTimerRef.current = window.setTimeout(() => {
+        audio.pause();
+        audioEffects.setDeckGain(audio, 1, 0);
+        pauseFadeTimerRef.current = null;
+      }, 175);
     } else {
       audio.pause();
+      audioEffects.setDeckGain(audio, 1, 0);
       handlePlayState(false);
     }
-  }, [currentSong, handlePlayState]);
+  }, [currentSong, getActiveAudio, handlePlayState, soundSettings.fadeOnPlayPause]);
 
   useEffect(() => {
     const handleExternalToggle = () => {
@@ -305,15 +522,25 @@ export const PlayerBar = ({
   }, [togglePlay]);
 
   useEffect(() => {
+    const handleExternalOpenFullScreen = () => {
+      if (currentSong) setIsNowPlayingOpen(true);
+    };
+    window.addEventListener('app:open-fullscreen', handleExternalOpenFullScreen);
+    return () =>
+      window.removeEventListener('app:open-fullscreen', handleExternalOpenFullScreen);
+  }, [currentSong]);
+
+  useEffect(() => {
     if (!sleepTimer || sleepTimer.mode !== 'until') return;
     const remainingMs = Math.max(0, sleepTimer.endsAt - Date.now());
     const timer = window.setTimeout(() => {
-      audioRef.current?.pause();
+      getActiveAudio()?.pause();
+      getStandbyAudio()?.pause();
       handlePlayState(false);
       onClearSleepTimer?.();
     }, remainingMs);
     return () => window.clearTimeout(timer);
-  }, [sleepTimer, handlePlayState, onClearSleepTimer]);
+  }, [sleepTimer, getActiveAudio, getStandbyAudio, handlePlayState, onClearSleepTimer]);
 
   const toggleRepeat = useCallback(() => {
     if (repeatMode === 'off') setRepeatMode('all');
@@ -322,14 +549,15 @@ export const PlayerBar = ({
   }, [repeatMode, setRepeatMode]);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const vol = Number(e.target.value);
+    const vol = Math.min(maxVolFactor, Number(e.target.value));
     setVolume(vol);
-    if (audioRef.current) audioRef.current.volume = vol;
+    applyDeckPlaybackParams(audioRefA.current, vol, soundSettings.playbackSpeed, soundSettings.preservePitch);
+    applyDeckPlaybackParams(audioRefB.current, vol, soundSettings.playbackSpeed, soundSettings.preservePitch);
   };
 
   const handleSeek = useCallback(
     (newTime: number) => {
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       if (!audio || !Number.isFinite(newTime)) return;
       const maxDur = audio.duration || duration || 0;
       const clamped = Math.max(0, maxDur ? Math.min(maxDur, newTime) : newTime);
@@ -337,7 +565,7 @@ export const PlayerBar = ({
       setCurrentTime(clamped);
       syncMediaSessionPosition(maxDur, clamped, audio.playbackRate || 1);
     },
-    [duration]
+    [duration, getActiveAudio]
   );
 
   const handleSeekRef = useRef(handleSeek);
@@ -347,11 +575,22 @@ export const PlayerBar = ({
 
   const handleDirectVolumeChange = useCallback(
     (newVol: number) => {
-      const clamped = Math.max(0, Math.min(1, Math.round(newVol * 100) / 100));
+      const clamped = Math.max(0, Math.min(maxVolFactor, Math.round(newVol * 100) / 100));
       setVolume(clamped);
-      if (audioRef.current) audioRef.current.volume = clamped;
+      applyDeckPlaybackParams(
+        audioRefA.current,
+        clamped,
+        soundSettings.playbackSpeed,
+        soundSettings.preservePitch
+      );
+      applyDeckPlaybackParams(
+        audioRefB.current,
+        clamped,
+        soundSettings.playbackSpeed,
+        soundSettings.preservePitch
+      );
     },
-    [setVolume]
+    [maxVolFactor, setVolume, soundSettings.playbackSpeed, soundSettings.preservePitch]
   );
 
   const handleToggleMute = useCallback(() => {
@@ -369,7 +608,7 @@ export const PlayerBar = ({
     onNext: () => playNextRef.current(),
     onPrev: () => playPrevRef.current(),
     onSeekBy: (delta) => {
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       if (!audio || !currentSong) return;
       handleSeekRef.current(audio.currentTime + delta);
     },
@@ -392,10 +631,10 @@ export const PlayerBar = ({
   useEffect(() => {
     syncMediaSession(currentSong, isPlaying, {
       onPlay: () => {
-        audioRef.current?.play().catch(console.error);
+        getActiveAudio()?.play().catch(console.error);
       },
       onPause: () => {
-        audioRef.current?.pause();
+        getActiveAudio()?.pause();
       },
       onNext: () => {
         playNextRef.current();
@@ -407,16 +646,17 @@ export const PlayerBar = ({
         handleSeekRef.current(time);
       },
     });
-  }, [currentSong, isPlaying]);
+  }, [currentSong, isPlaying, getActiveAudio]);
 
-  const handleSongEnd = () => {
+  const handleSongEnd = (deck: 'A' | 'B') => {
+    if (deck !== activeDeckRef.current) return;
     if (sleepTimer?.mode === 'songEnd') {
       handlePlayState(false);
       onClearSleepTimer?.();
       return;
     }
     if (repeatMode === 'one') {
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       if (audio) {
         countedRef.current = false;
         audio.currentTime = 0;
@@ -424,12 +664,58 @@ export const PlayerBar = ({
       }
       return;
     }
+
+    // پخش بدون وقفه (Gapless) در صورت آماده بودن دک دوم
+    if (
+      soundSettings.gaplessPlayback &&
+      soundSettings.crossfadeSeconds === 0
+    ) {
+      const nextSong = peekNextRef.current?.() ?? null;
+      const standby = getStandbyAudio();
+      const outgoing = getActiveAudio();
+      if (
+        nextSong &&
+        standby &&
+        preloadedRef.current?.songId === nextSong.id &&
+        standby.readyState >= 2
+      ) {
+        const nextDeck: 'A' | 'B' = activeDeckRef.current === 'A' ? 'B' : 'A';
+        audioEffects.attach(standby);
+        applyDeckPlaybackParams(
+          standby,
+          effectiveVolume,
+          soundSettings.playbackSpeed,
+          soundSettings.preservePitch
+        );
+        audioEffects.setDeckGain(standby, 1, 0);
+        activeDeckRef.current = nextDeck;
+        skipNextLoadRef.current = nextSong.id;
+        standby
+          .play()
+          .then(() => {
+            if (outgoing) {
+              outgoing.pause();
+              outgoing.removeAttribute('src');
+              outgoing.load();
+            }
+            playNextRef.current();
+          })
+          .catch(() => {
+            activeDeckRef.current = nextDeck === 'A' ? 'B' : 'A';
+            skipNextLoadRef.current = null;
+            if (!playNextRef.current()) handlePlayState(false);
+          });
+        return;
+      }
+    }
+
     if (!playNext()) handlePlayState(false);
   };
 
   // بازیابی خودکار از IndexedDB در صورت منقضی‌شدن Blob URL
-  const handleAudioError = async () => {
-    const audio = audioRef.current;
+  const handleAudioError = async (deck: 'A' | 'B') => {
+    if (deck !== activeDeckRef.current) return;
+    const audio = getActiveAudio();
     if (currentSong && audio && retriedRecoveryRef.current !== currentSong.id) {
       retriedRecoveryRef.current = currentSong.id;
       const blob = await getAudioBlob(currentSong.id);
@@ -456,7 +742,7 @@ export const PlayerBar = ({
   }, []);
 
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
-  const volumePercent = volume * 100;
+  const volumePercent = effectiveVolume * 100;
 
   // # درخشش نوار پیشرفت (بر اساس پالت)
   const glowColor = `0 0 14px ${theme.colors.glow || theme.colors.primary}`;
@@ -479,19 +765,21 @@ export const PlayerBar = ({
     padding: 0,
   };
 
+  const isDocked = displaySettings.playerBarStyle === 'docked';
+
   return (
     <div
       style={{
         boxSizing: 'border-box',
         height: isMobile ? '66px' : '90px',
-        width: isMobile ? '320px' : '90%',
-        maxWidth: isMobile ? 'calc(100% - 24px)' : '1000px',
+        width: isDocked ? '100%' : isMobile ? '320px' : '90%',
+        maxWidth: isDocked ? '100%' : isMobile ? 'calc(100% - 24px)' : '1000px',
         // # سطح شیشه‌ای نوار (پس‌زمینه، لبه، سایه) از تم می‌آید
         background: theme.glass.bar.background,
-        backdropFilter: 'blur(30px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-        borderRadius: isMobile ? '18px' : '24px',
-        margin: isMobile ? '0 auto 12px auto' : '0 auto 16px auto',
+        backdropFilter: `blur(${theme.display?.glassBlur ?? 26}px) saturate(180%)`,
+        WebkitBackdropFilter: `blur(${theme.display?.glassBlur ?? 26}px) saturate(180%)`,
+        borderRadius: isDocked ? '0px' : isMobile ? theme.radius.lg || '18px' : theme.radius.xl || '24px',
+        margin: isDocked ? '0' : isMobile ? '0 auto 12px auto' : '0 auto 16px auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -499,8 +787,9 @@ export const PlayerBar = ({
         position: 'relative',
         color: songTitleColor,
         zIndex: 20,
-        boxShadow: theme.glass.bar.boxShadow,
-        border: theme.glass.bar.border,
+        boxShadow: isDocked ? '0 -8px 28px rgba(0,0,0,0.22)' : theme.glass.bar.boxShadow,
+        border: isDocked ? 'none' : theme.glass.bar.border,
+        borderTop: isDocked ? theme.glass.bar.border : theme.glass.bar.border,
         gap: isMobile ? '10px' : '0',
       }}
     >
@@ -985,7 +1274,7 @@ export const PlayerBar = ({
                   min={0}
                   max={1}
                   step={0.01}
-                  value={volume}
+                  value={effectiveVolume}
                   onChange={handleVolumeChange}
                   style={{
                     position: 'absolute',
@@ -1033,16 +1322,42 @@ export const PlayerBar = ({
         </div>
       )}
       <audio
-        ref={audioRef}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleSongEnd}
+        ref={audioRefA}
+        onTimeUpdate={() => handleTimeUpdate('A')}
+        onEnded={() => handleSongEnd('A')}
         onPlay={() => {
+          if (activeDeckRef.current !== 'A') return;
           audioEffects.resumeContext();
           handlePlayState(true);
         }}
-        onPlaying={() => handlePlayState(true)}
-        onPause={() => handlePlayState(false)}
-        onError={handleAudioError}
+        onPlaying={() => {
+          if (activeDeckRef.current === 'A') handlePlayState(true);
+        }}
+        onPause={() => {
+          if (activeDeckRef.current === 'A' && !pauseFadeTimerRef.current) {
+            handlePlayState(false);
+          }
+        }}
+        onError={() => handleAudioError('A')}
+      />
+      <audio
+        ref={audioRefB}
+        onTimeUpdate={() => handleTimeUpdate('B')}
+        onEnded={() => handleSongEnd('B')}
+        onPlay={() => {
+          if (activeDeckRef.current !== 'B') return;
+          audioEffects.resumeContext();
+          handlePlayState(true);
+        }}
+        onPlaying={() => {
+          if (activeDeckRef.current === 'B') handlePlayState(true);
+        }}
+        onPause={() => {
+          if (activeDeckRef.current === 'B' && !pauseFadeTimerRef.current) {
+            handlePlayState(false);
+          }
+        }}
+        onError={() => handleAudioError('B')}
       />
 
       <FullScreenPlayer
@@ -1056,7 +1371,7 @@ export const PlayerBar = ({
         currentTime={currentTime}
         duration={duration}
         onSeek={handleSeek}
-        volume={volume}
+        volume={effectiveVolume}
         onVolumeChange={handleDirectVolumeChange}
         isShuffle={isShuffle}
         onToggleShuffle={() => setIsShuffle(!isShuffle)}
@@ -1069,6 +1384,9 @@ export const PlayerBar = ({
         onClearQueue={onClearQueue}
         onShuffleQueue={onShuffleQueue}
         onToggleFavorite={onToggleFavorite}
+        liveVisualizer={soundSettings.liveVisualizer}
+        artworkStyle={displaySettings.artworkStyle}
+        visualizerStyle={displaySettings.visualizerStyle}
         t={t}
         theme={theme}
       />

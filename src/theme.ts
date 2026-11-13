@@ -568,53 +568,123 @@ const darkThemes: Record<PaletteType, any> = {
 };
 darkThemes.default = darkThemes['classic-blue'];
 
-export const getTheme = (mode: ThemeMode | 'light' | 'dark', palette: PaletteType) => {
+export const DEFAULT_DISPLAY_SETTINGS: import('./types').DisplaySettings = {
+  adaptiveArtworkAccent: false,
+  adaptiveArtworkWallpaper: false,
+  fontFamily: 'vazirmatn',
+  fontScale: 1,
+  listDensity: 'comfortable',
+  cornerStyle: 'balanced',
+  glassOpacity: 0.62,
+  glassBlur: 24,
+  oledPureBlack: false,
+  ambientGlow: true,
+  playerBarStyle: 'floating',
+  artworkStyle: 'classic',
+  visualizerStyle: 'bars',
+  reduceMotion: false,
+};
+
+const FONT_STACKS: Record<import('./types').FontChoice, string> = {
+  vazirmatn: "'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Roboto, sans-serif",
+  editorial: "'Georgia', 'Times New Roman', 'Vazirmatn', serif",
+};
+
+const RADIUS_PRESETS: Record<import('./types').CornerStyle, typeof baseRadius> = {
+  sharp: { sm: '4px', md: '6px', lg: '9px', xl: '12px', full: '9999px' },
+  balanced: baseRadius,
+  pill: { sm: '12px', md: '18px', lg: '24px', xl: '32px', full: '9999px' },
+};
+
+export interface ThemeDisplayOptions {
+  display?: Partial<import('./types').DisplaySettings>;
+  overridePrimaryHex?: string | null;
+}
+
+export const getTheme = (
+  mode: ThemeMode | 'light' | 'dark',
+  palette: PaletteType,
+  options?: ThemeDisplayOptions
+) => {
   const effectiveMode = mode === 'dark' ? 'dark' : 'light';
   const paletteKey = (palette in lightThemes ? palette : 'classic-blue') as PaletteType;
-  const theme = effectiveMode === 'light' ? lightThemes[paletteKey] : darkThemes[paletteKey];
-
+  const baseTheme = effectiveMode === 'light' ? lightThemes[paletteKey] : darkThemes[paletteKey];
+  const display = { ...DEFAULT_DISPLAY_SETTINGS, ...options?.display };
   const isDark = effectiveMode === 'dark';
+
+  const activePrimary = options?.overridePrimaryHex || baseTheme.colors.primary;
+  const surfaceAlpha = Math.max(0.22, Math.min(0.95, display.glassOpacity));
+  const blurPx = Math.max(0, Math.min(36, Math.round(display.glassBlur)));
+
+  const resolvedBackground =
+    isDark && display.oledPureBlack ? '#000000' : baseTheme.colors.background;
+  const resolvedSurfaceSolid =
+    isDark && display.oledPureBlack ? '#0a0a0d' : baseTheme.colors.surfaceSolid;
+  const resolvedSurface = isDark
+    ? withAlpha(resolvedSurfaceSolid, surfaceAlpha)
+    : withAlpha('#ffffff', Math.min(0.96, surfaceAlpha + 0.14));
+
+  const colors = {
+    ...baseTheme.colors,
+    primary: activePrimary,
+    accent: options?.overridePrimaryHex ? activePrimary : baseTheme.colors.accent,
+    glow: options?.overridePrimaryHex ? activePrimary : baseTheme.colors.glow,
+    background: resolvedBackground,
+    surfaceSolid: resolvedSurfaceSolid,
+    surface: resolvedSurface,
+    surfaceHover: options?.overridePrimaryHex
+      ? withAlpha(activePrimary, isDark ? 0.14 : 0.08)
+      : baseTheme.colors.surfaceHover,
+    border: isDark && display.oledPureBlack
+      ? withAlpha(activePrimary, 0.2)
+      : options?.overridePrimaryHex
+      ? withAlpha(activePrimary, 0.24)
+      : baseTheme.colors.border,
+  };
+
+  const radius = RADIUS_PRESETS[display.cornerStyle] || baseRadius;
+  const fonts = {
+    main: FONT_STACKS[display.fontFamily] || baseFonts.main,
+  };
+
   const baseShadows = {
     soft: isDark ? '0 8px 24px rgba(0, 0, 0, 0.35)' : '0 4px 18px rgba(0, 0, 0, 0.05)',
     hard: isDark ? '0 16px 40px rgba(0, 0, 0, 0.55)' : '0 10px 30px rgba(0, 0, 0, 0.1)',
-    glow: `0 8px 30px ${theme.colors.glow}44`,
+    glow: `0 8px 30px ${withAlpha(colors.glow, 0.28)}`,
   };
 
+  const cardFilter = blurPx > 0 ? `blur(${blurPx}px) saturate(180%)` : 'none';
+  const rowFilter = blurPx > 0 ? `blur(${Math.max(0, Math.round(blurPx * 0.85))}px) saturate(160%)` : 'none';
+
   const glass = {
-    blur: '24px',
-    background: theme.colors.surface,
-    border: `1px solid ${theme.colors.border}`,
+    blur: `${blurPx}px`,
+    background: colors.surface,
+    border: `1px solid ${colors.border}`,
     card: {
-      backgroundColor: theme.colors.surface,
-      backdropFilter: 'blur(26px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(26px) saturate(180%)',
-      border: `1px solid ${theme.colors.border}`,
+      backgroundColor: colors.surface,
+      backdropFilter: cardFilter,
+      WebkitBackdropFilter: cardFilter,
+      border: `1px solid ${colors.border}`,
       boxShadow: isDark
         ? '0 12px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
         : '0 8px 24px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
     },
     row: {
-      backgroundColor: theme.colors.surface,
-      backdropFilter: 'blur(20px) saturate(160%)',
-      WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-      border: `1px solid ${theme.colors.border}`,
+      backgroundColor: colors.surface,
+      backdropFilter: rowFilter,
+      WebkitBackdropFilter: rowFilter,
+      border: `1px solid ${colors.border}`,
       boxShadow: isDark
         ? '0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
         : '0 2px 10px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
     },
   };
 
-  /**
-   * سطح نوار پلیر (شیشه‌ی نیمه‌شفاف) مخصوص هر حالت:
-   * - تاریک: رنگ تم (surfaceSolid) با شفافیت، تا بلور دیده شود
-   * - روشن: پس‌زمینه‌ی صفحه تقریباً سفید است، پس شیشه‌ی سفید دیده نمی‌شد. اینجا سفید
-   *   نیمه‌شفاف با یک لایه‌ی کم‌رنگ از رنگ متن، لبه‌ی روشن و سایه‌ی رنگی هم‌رنگ پالت
-   *   ساخته می‌شود تا نوار از لیست پشتش جدا و شیشه‌ای دیده شود.
-   */
-  const { primary, surfaceSolid, textPrimary } = theme.colors;
+  const { primary, surfaceSolid, textPrimary } = colors;
   const bar = isDark
     ? {
-        background: withAlpha(surfaceSolid, 0.72),
+        background: withAlpha(surfaceSolid, Math.min(0.96, surfaceAlpha + 0.12)),
         border: '1px solid rgba(255, 255, 255, 0.12)',
         boxShadow: [
           '0 16px 40px rgba(0, 0, 0, 0.5)',
@@ -624,23 +694,27 @@ export const getTheme = (mode: ThemeMode | 'light' | 'dark', palette: PaletteTyp
     : {
         background: `linear-gradient(${withAlpha(textPrimary, 0.07)}, ${withAlpha(
           textPrimary,
-          0.07,
-        )}), rgba(255, 255, 255, 0.55)`,
+          0.07
+        )}), rgba(255, 255, 255, ${Math.min(0.95, surfaceAlpha * 0.9)})`,
         border: `1px solid ${withAlpha(textPrimary, 0.12)}`,
         boxShadow: [
-          `0 14px 36px ${withAlpha(primary, 0.22)}`, // سایه‌ی رنگی هم‌رنگ پالت
+          `0 14px 36px ${withAlpha(primary, 0.22)}`,
           '0 2px 8px rgba(0, 0, 0, 0.08)',
-          'inset 0 1px 0 rgba(255, 255, 255, 0.9)', // لبه‌ی روشن بالا
+          'inset 0 1px 0 rgba(255, 255, 255, 0.9)',
         ].join(', '),
       };
 
   return {
-    ...theme,
+    ...baseTheme,
+    colors,
     isDark,
     glass: { ...glass, bar },
-    fonts: baseFonts,
+    fonts,
     shadows: baseShadows,
-    radius: baseRadius,
-    transitions: baseTransitions,
+    radius,
+    transitions: display.reduceMotion
+      ? { fast: 'none', normal: 'none', slow: 'none' }
+      : baseTransitions,
+    display,
   };
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { Upload } from 'lucide-react';
 import { DEMO_SONGS } from './player/demoSongs';
 import { PlayerBar } from './components/PlayerBar';
@@ -10,13 +10,14 @@ import { usePersistentState } from './hooks/usePersistentState';
 import { usePlayer } from './hooks/usePlayer';
 import { STORAGE_KEYS } from './storage/keys';
 import { readJSON } from './storage/safeStorage';
-import { isEqualizerSettings, isPlaylistList, isSongList } from './types/guards';
-import type { EqualizerSettings, Playlist, SleepTimerState, Song } from './types';
-import { DEFAULT_EQ_SETTINGS, audioEffects } from './player/audioEffects';
+import { isDisplaySettings, isEqualizerSettings, isPlaylistList, isSongList, isSoundSettings } from './types/guards';
+import type { DisplaySettings, EqualizerSettings, Playlist, SleepTimerState, Song, SoundSettings } from './types';
+import { DEFAULT_EQ_SETTINGS, DEFAULT_SOUND_SETTINGS, audioEffects } from './player/audioEffects';
 import { translations, type Language } from './locales';
-import { getTheme, type PaletteType, type ThemeMode } from './theme';
+import { DEFAULT_DISPLAY_SETTINGS, getTheme, type PaletteType, type ThemeMode } from './theme';
 import { getAudioBlobsBatch, deleteAudioBlob } from './storage/mediaStore';
 import { extractDroppedAudioFiles, extractSongsBatched } from './utils/audioMetadata';
+import { extractDominantHex } from './utils/artworkColor';
 
 // بارگذاری تنبل صفحات غیر اول برای سرعت بالای راه‌اندازی روی ویندوز
 const AllSongs = lazy(() => import('./features/AllSongs').then((m) => ({ default: m.AllSongs })));
@@ -120,12 +121,23 @@ function App() {
     DEFAULT_EQ_SETTINGS,
     isEqualizerSettings
   );
+  const [soundSettings, setSoundSettings] = usePersistentState<SoundSettings>(
+    STORAGE_KEYS.soundSettings,
+    DEFAULT_SOUND_SETTINGS,
+    isSoundSettings
+  );
+  const [displaySettings, setDisplaySettings] = usePersistentState<DisplaySettings>(
+    STORAGE_KEYS.displaySettings,
+    DEFAULT_DISPLAY_SETTINGS,
+    isDisplaySettings
+  );
+  const [adaptivePrimaryHex, setAdaptivePrimaryHex] = useState<string | null>(null);
   const player = usePlayer(songs);
 
-  // اعمال تغییرات اکولایزر بر روی خروجی صوتی
+  // اعمال یکپارچه‌ی تمام تنظیمات صدا و موتور DSP بر روی خروجی صوتی
   useEffect(() => {
-    audioEffects.applySettings(equalizerSettings);
-  }, [equalizerSettings]);
+    audioEffects.applySoundSettings(soundSettings);
+  }, [soundSettings]);
 
   // در صورت خالی بودن دیتابیس لوکال، ۳ آهنگ دمو به صورت خودکار بارگذاری شوند
   useEffect(() => {
@@ -221,16 +233,46 @@ function App() {
   const t = translations[language];
   const resolvedMode: 'light' | 'dark' =
     themeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : themeMode;
-  const theme = getTheme(resolvedMode, colorPalette);
 
-  // همگام‌سازی کلاس dark برای استایل‌ها
   useEffect(() => {
-    if (resolvedMode === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    let cancelled = false;
+    const coverUrl = player.currentSong?.cover;
+    if (!displaySettings.adaptiveArtworkAccent || !coverUrl) {
+      setAdaptivePrimaryHex(null);
+      return;
     }
-  }, [resolvedMode]);
+    extractDominantHex(coverUrl, resolvedMode === 'light').then((hex) => {
+      if (!cancelled) setAdaptivePrimaryHex(hex);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [displaySettings.adaptiveArtworkAccent, player.currentSong?.cover, resolvedMode]);
+
+  const theme = getTheme(resolvedMode, colorPalette, {
+    display: displaySettings,
+    overridePrimaryHex: adaptivePrimaryHex,
+  });
+
+  // همگام‌سازی کلاس dark، فونت، مقیاس و کاهش انیمیشن
+  useEffect(() => {
+    const root = document.documentElement;
+    if (resolvedMode === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    root.style.setProperty('--app-font', theme.fonts.main);
+    root.style.fontSize = `${Math.round(16 * (displaySettings.fontScale || 1) * 10) / 10}px`;
+    root.setAttribute('data-density', displaySettings.listDensity);
+    root.setAttribute('data-reduce-motion', displaySettings.reduceMotion ? 'true' : 'false');
+  }, [
+    resolvedMode,
+    theme.fonts.main,
+    displaySettings.fontScale,
+    displaySettings.listDensity,
+    displaySettings.reduceMotion,
+  ]);
 
   /** وقتی یک پخش «واقعی» حساب شد، شمارنده‌ی پخش زیاد می‌شه و تاریخ پخش ثبت می‌شه */
   const handleSongPlayed = useCallback(
@@ -568,6 +610,10 @@ function App() {
           setColorPalette={setColorPalette}
           equalizerSettings={equalizerSettings}
           setEqualizerSettings={setEqualizerSettings}
+          soundSettings={soundSettings}
+          setSoundSettings={setSoundSettings}
+          displaySettings={displaySettings}
+          setDisplaySettings={setDisplaySettings}
           theme={theme}
           customBackground={customBackground}
           setCustomBackground={setCustomBackground}
@@ -577,6 +623,8 @@ function App() {
           setCustomBgDim={setCustomBgDim}
           glassCardCovers={glassCardCovers}
           setGlassCardCovers={setGlassCardCovers}
+          sleepTimer={sleepTimer}
+          onSetSleepTimer={setSleepTimer}
         />
       );
     }
@@ -727,7 +775,13 @@ function App() {
     }
   };
 
+  const activeBackdrop =
+    displaySettings.adaptiveArtworkWallpaper && player.currentSong?.cover
+      ? player.currentSong.cover
+      : customBackground;
+
   return (
+    <MotionConfig reducedMotion={displaySettings.reduceMotion ? 'always' : 'user'}>
     <div
       onDragEnter={handleWindowDragEnter}
       onDragOver={handleWindowDragOver}
@@ -745,8 +799,8 @@ function App() {
         position: 'relative',
       }}
     >
-      {/* پس‌زمینه انتخابی کاربر (Custom App Wallpaper) */}
-      {customBackground && (
+      {/* پس‌زمینه انتخابی کاربر یا کاور پویا (Custom / Adaptive Wallpaper) */}
+      {activeBackdrop && (
         <div
           aria-hidden="true"
           style={{
@@ -761,12 +815,16 @@ function App() {
             style={{
               position: 'absolute',
               inset: '-24px',
-              backgroundImage: `url(${customBackground})`,
+              backgroundImage: `url(${activeBackdrop})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              filter: `blur(${customBgBlur}px)`,
-              transform: 'scale(1.05)',
-              transition: 'filter 0.3s ease',
+              filter: `blur(${
+                displaySettings.adaptiveArtworkWallpaper && player.currentSong?.cover
+                  ? Math.max(24, customBgBlur)
+                  : customBgBlur
+              }px)`,
+              transform: 'scale(1.06)',
+              transition: displaySettings.reduceMotion ? 'none' : 'filter 0.3s ease, background-image 0.45s ease',
             }}
           />
           <div
@@ -777,13 +835,14 @@ function App() {
                 ? `rgba(0, 0, 0, ${customBgDim / 100})`
                 : `rgba(255, 255, 255, ${customBgDim / 100})`,
               backdropFilter: 'saturate(130%)',
-              transition: 'background-color 0.3s ease',
+              transition: displaySettings.reduceMotion ? 'none' : 'background-color 0.3s ease',
             }}
           />
         </div>
       )}
 
       {/* هاله نور پس‌زمینه زنده و سیال به سبک اپل موزیک */}
+      {displaySettings.ambientGlow && (
       <div
         aria-hidden="true"
         style={{
@@ -792,7 +851,7 @@ function App() {
           pointerEvents: 'none',
           zIndex: 0,
           overflow: 'hidden',
-          opacity: customBackground ? 0.45 : 1,
+          opacity: activeBackdrop ? 0.45 : 1,
           transition: 'opacity 0.4s ease',
         }}
       >
@@ -848,6 +907,7 @@ function App() {
           }}
         />
       </div>
+      )}
 
       <TopBar
         currentTab={isSettingsOpen ? 'settings' : currentTab}
@@ -941,6 +1001,9 @@ function App() {
           onOpenSettings={() => setTab('settings')}
           sleepTimer={sleepTimer}
           onClearSleepTimer={handleClearSleepTimer}
+          peekNext={player.peekNext}
+          soundSettings={soundSettings}
+          displaySettings={displaySettings}
         />
       </div>
 
@@ -974,6 +1037,7 @@ function App() {
         </div>
       )}
     </div>
+    </MotionConfig>
   );
 }
 

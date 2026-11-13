@@ -179,7 +179,7 @@ export const TopBar = ({
               cursor: 'pointer',
               color: currentTab === 'settings' ? theme.colors.primary : theme.colors.textSecondary,
               borderRadius: theme.radius?.md || '10px',
-              transition: 'background-color 0.15s ease, color 0.15s ease',
+              transition: 'background-color 0.15s ease, color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
             title={t.settings}
             onMouseEnter={(e) => {
@@ -258,7 +258,7 @@ export const TopBar = ({
                   opacity: isActive ? 1 : theme.isDark ? 0.55 : 0.8,
                   filter: 'none',
                   zIndex: isActive ? 2 : 1,
-                  transition: 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease, filter 0.35s ease, color 0.35s ease',
+                  transition: 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), scale 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease, filter 0.35s ease, color 0.35s ease',
                 }}
               >
                 <span style={{ lineHeight: '1.2' }}>{item.label}</span>

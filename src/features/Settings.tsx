@@ -1,26 +1,33 @@
 import { useState, useRef, useEffect } from 'react';
-import type { EqualizerSettings, Song } from '../types';
-import { 
-  Upload, 
-  Globe, 
-  Music, 
-  Palette, 
-  Sun, 
-  Moon, 
-  Smartphone, 
-  ChevronDown, 
+import type {
+  DisplaySettings as DisplaySettingsType,
+  EqualizerSettings,
+  SleepTimerState,
+  Song,
+  SoundSettings as SoundSettingsType,
+} from '../types';
+import {
+  Upload,
+  Globe,
+  Music,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
-  Image as ImageIcon,
-  RefreshCw,
-  Layers,
   FolderUp,
-  Download
+  Download,
+  Timer,
+  Volume2,
+  Monitor,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { PaletteType, ThemeMode } from '../theme';
-import { EqualizerControl } from '../components/EqualizerControl';
+import { DEFAULT_DISPLAY_SETTINGS, type PaletteType, type ThemeMode } from '../theme';
+import { SoundSettings } from './SoundSettings';
+import { DisplaySettings } from './DisplaySettings';
+import { DEFAULT_SOUND_SETTINGS } from '../player/audioEffects';
 import { extractSongsBatched } from '../utils/audioMetadata';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { withAlpha } from '../utils/color';
 
 interface SettingsProps {
   songs: Song[];
@@ -34,6 +41,10 @@ interface SettingsProps {
   setColorPalette: (palette: PaletteType) => void;
   equalizerSettings: EqualizerSettings;
   setEqualizerSettings: (settings: EqualizerSettings) => void;
+  soundSettings?: SoundSettingsType;
+  setSoundSettings?: React.Dispatch<React.SetStateAction<SoundSettingsType>>;
+  displaySettings?: DisplaySettingsType;
+  setDisplaySettings?: React.Dispatch<React.SetStateAction<DisplaySettingsType>>;
   theme: any;
   customBackground?: string | null;
   setCustomBackground?: (bg: string | null) => void;
@@ -43,35 +54,9 @@ interface SettingsProps {
   setCustomBgDim?: (dim: number) => void;
   glassCardCovers?: boolean;
   setGlassCardCovers?: (enabled: boolean) => void;
+  sleepTimer?: SleepTimerState;
+  onSetSleepTimer?: (timer: SleepTimerState) => void;
 }
-
-/** لیست پالت‌های رنگی قابل انتخاب در تنظیمات (با اولویت پالت‌های دو رنگی ساده سفید-آبی و سفید-قرمز) */
-const PALETTES: { id: PaletteType; label: string; color: string; secondaryColor: string }[] = [
-  { id: 'classic-blue', label: 'آبی کلاسیک (سفید آبی / مشکی آبی)', color: '#0066FF', secondaryColor: '#38BDF8' },
-  { id: 'classic-red', label: 'قرمز کلاسیک (سفید قرمز / مشکی قرمز)', color: '#DC2626', secondaryColor: '#EF4444' },
-  { id: 'nordic', label: 'نوردیک استیل', color: '#57707A', secondaryColor: '#C5BAC4' },
-  { id: 'glacier', label: 'اقیانوس و قطب', color: '#4A5C6A', secondaryColor: '#CCD0CF' },
-  { id: 'amethyst', label: 'آمیتیست بنفش', color: '#8B7CC7', secondaryColor: '#5A3B8C' },
-  { id: 'sapphire', label: 'یاقوت کبود', color: '#3B82F6', secondaryColor: '#1C2541' },
-  { id: 'amber', label: 'قهوه و موکا', color: '#C6601F', secondaryColor: '#A88462' },
-  { id: 'sunset', label: 'غروب نارنجی', color: '#FF7A00', secondaryColor: '#FFA94D' },
-  { id: 'emerald', label: 'زمرد و بیشه', color: '#48BB78', secondaryColor: '#163832' },
-  { id: 'teal', label: 'تالاب دریایی', color: '#14B8A6', secondaryColor: '#7FB3B8' },
-  { id: 'synthwave', label: 'نئون سایبر', color: '#FF6B6B', secondaryColor: '#D6598F' },
-  { id: 'mauve', label: 'مخملی بنفش', color: '#D946EF', secondaryColor: '#DFB6B2' },
-  { id: 'mint', label: 'فیروزه و نعنا', color: '#2DD4BF', secondaryColor: '#99F6E4' },
-];
-
-/** پیش‌فرض‌های والپیپر انتخابی و باکیفیت برای بک‌گراند */
-const WALLPAPER_PRESETS = [
-  { id: 'nebula', label: 'کیهان و ستاره‌ها', url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1600&auto=format&fit=crop&q=80' },
-  { id: 'mountain', label: 'کوهستان برفی', url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&auto=format&fit=crop&q=80' },
-  { id: 'cyber', label: 'افق نئونی شب', url: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1600&auto=format&fit=crop&q=80' },
-  { id: 'ocean', label: 'امواج اقیانوس', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&auto=format&fit=crop&q=80' },
-  { id: 'gradient', label: 'گرادیان ارغوانی', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1600&auto=format&fit=crop&q=80' },
-];
-
-/** پیش‌فرض‌های والپیپر انتخابی و باکیفیت برای بک‌گراند */
 
 /** یک ردیف تنظیمات: آیکون + عنوان سمت راست، محتوا سمت چپ */
 /** یک ردیف تنظیمات: آیکون + عنوان سمت راست، محتوا سمت چپ */
@@ -266,7 +251,7 @@ const DropdownSelect = <T extends string>({
                     fontWeight: isSelected ? '700' : '500',
                     textAlign: 'start',
                     boxSizing: 'border-box',
-                    transition: 'background-color 0.15s ease, color 0.15s ease',
+                    transition: 'background-color 0.15s ease, color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
@@ -308,62 +293,6 @@ const DropdownSelect = <T extends string>({
   );
 };
 
-/** دایره/کپسول انتخاب یک پالت رنگی */
-const PaletteSwatch = ({
-  palette,
-  selected,
-  onClick,
-  theme,
-}: {
-  palette: (typeof PALETTES)[number];
-  selected: boolean;
-  onClick: () => void;
-  theme: any;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    title={palette.label}
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '7px 12px',
-      borderRadius: '20px',
-      border: selected
-        ? `2px solid ${palette.color}`
-        : `1px solid ${theme.colors.border}`,
-      backgroundColor: selected ? `${palette.color}20` : 'rgba(255, 255, 255, 0.04)',
-      boxShadow: selected ? `0 0 14px ${palette.color}55` : 'none',
-      cursor: 'pointer',
-      transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
-      outline: 'none',
-    }}
-  >
-    <div
-      style={{
-        width: '18px',
-        height: '18px',
-        borderRadius: '50%',
-        background: `linear-gradient(135deg, ${palette.color} 50%, ${palette.secondaryColor} 50%)`,
-        border: '1.5px solid rgba(255, 255, 255, 0.4)',
-        boxShadow: `0 2px 6px ${palette.color}66`,
-        flexShrink: 0,
-      }}
-    />
-    <span
-      style={{
-        fontSize: '13px',
-        fontWeight: selected ? '700' : '500',
-        color: selected ? theme.colors.textPrimary : theme.colors.textSecondary,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {palette.label}
-    </span>
-  </button>
-);
-
 /** دکمه‌ی انتخاب فایل صوتی (input مخفی داخل label + نمایش وضعیت بارگذاری) */
 const UploadButton = ({ isLoading, label, onFilesSelected, theme }: {
   isLoading: boolean;
@@ -388,9 +317,8 @@ const UploadButton = ({ isLoading, label, onFilesSelected, theme }: {
         cursor: isLoading ? 'not-allowed' : 'pointer',
         fontWeight: 'bold',
         fontSize: '14px',
-        transition: 'transform 0.2s',
-        transform: hovered && !isLoading ? 'scale(1.05)' : 'scale(1)',
-        opacity: isLoading ? 0.7 : 1,
+        transition: 'opacity 0.18s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+        opacity: isLoading ? 0.7 : hovered ? 0.86 : 1,
       }}
     >
       {label}
@@ -418,6 +346,10 @@ export const Settings = ({
   setColorPalette,
   equalizerSettings,
   setEqualizerSettings,
+  soundSettings = DEFAULT_SOUND_SETTINGS,
+  setSoundSettings,
+  displaySettings = DEFAULT_DISPLAY_SETTINGS,
+  setDisplaySettings,
   theme,
   customBackground,
   setCustomBackground,
@@ -427,24 +359,37 @@ export const Settings = ({
   setCustomBgDim,
   glassCardCovers = true,
   setGlassCardCovers,
+  sleepTimer = { mode: 'off' },
+  onSetSleepTimer,
 }: SettingsProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const wallpaperInputRef = useRef<HTMLInputElement>(null);
+  const [subPage, setSubPage] = useState<'main' | 'sound' | 'display'>('main');
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const { isInstallable, isInstalled, install } = usePWAInstall();
 
-  const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result === 'string') {
-        setCustomBackground?.(result);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
+  useEffect(() => {
+    if (sleepTimer.mode !== 'until') return;
+    setNowTs(Date.now());
+    const id = window.setInterval(() => setNowTs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [sleepTimer]);
+
+  const remainingSleepSeconds =
+    sleepTimer.mode === 'until'
+      ? Math.max(0, Math.ceil((sleepTimer.endsAt - nowTs) / 1000))
+      : 0;
+
+  const sleepStatusLabel = (() => {
+    if (sleepTimer.mode === 'until') {
+      const m = Math.floor(remainingSleepSeconds / 60);
+      const s = remainingSleepSeconds % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+    if (sleepTimer.mode === 'songEnd') {
+      return t.endOfSong || 'پایان آهنگ فعلی';
+    }
+    return t.sleepTimerOff || 'خاموش';
+  })();
 
   // پردازش دسته‌ای و سریع فایل‌های انتخاب‌شده، استخراج متادیتا و افزودن به لیست آهنگ‌ها
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -470,19 +415,121 @@ export const Settings = ({
     directory: '',
   } as React.InputHTMLAttributes<HTMLInputElement>;
 
+  const isRTL = language === 'fa';
+
+  const soundSummaryParts: string[] = [];
+  if (equalizerSettings.enabled) {
+    soundSummaryParts.push(
+      soundSettings.eqMode === '10band'
+        ? t.eqMode10Band || '۱۰ بانده'
+        : t.eqMode5Band || '۵ بانده'
+    );
+  }
+  if (soundSettings.crossfadeSeconds > 0) {
+    soundSummaryParts.push(
+      `Crossfade ${soundSettings.crossfadeSeconds}${t.secondsShort || 's'}`
+    );
+  }
+  if (soundSettings.playbackSpeed !== 1) {
+    soundSummaryParts.push(`${soundSettings.playbackSpeed.toFixed(2)}x`);
+  }
+  if (soundSettings.reverbRoom !== 'off') {
+    soundSummaryParts.push(
+      soundSettings.reverbRoom === 'studio'
+        ? t.reverbStudio || 'استودیو'
+        : soundSettings.reverbRoom === 'hall'
+        ? t.reverbHall || 'سالن'
+        : t.reverbCathedral || 'کلیسا'
+    );
+  }
+  const soundSummaryText =
+    soundSummaryParts.length > 0
+      ? soundSummaryParts.join(' · ')
+      : t.soundMenuSubtitle || 'اکولایزر، کراس‌فید، سرعت پخش، ریورب و تعادل خروجی';
+
+  const displayBadgeText = displaySettings.adaptiveArtworkAccent
+    ? t.adaptiveAccentLabel || 'پویا'
+    : theme.name;
+
+  const soundBadgeText = equalizerSettings.enabled
+    ? soundSettings.eqMode === '10band'
+      ? '10-Band'
+      : 'EQ'
+    : soundSettings.reverbRoom !== 'off'
+    ? soundSettings.reverbRoom
+    : null;
+
   return (
-    <div
-      style={{
-        flex: 1,
-        padding: 'clamp(16px, 3.5vw, 40px)',
-        paddingBottom: '140px',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        boxSizing: 'border-box',
-      }}
-    >
+    <div style={{ width: '100%', overflowX: 'clip' }}>
+      <AnimatePresence mode="wait" initial={false}>
+        {subPage === 'sound' && setSoundSettings ? (
+          <motion.div
+            key="settings-sub-sound"
+            initial={{ opacity: 0, x: isRTL ? -26 : 26 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: isRTL ? -22 : 22 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+          >
+            <SoundSettings
+              soundSettings={soundSettings}
+              setSoundSettings={setSoundSettings}
+              equalizerSettings={equalizerSettings}
+              setEqualizerSettings={setEqualizerSettings}
+              onBack={() => setSubPage('main')}
+              theme={theme}
+              t={t}
+              language={language}
+            />
+          </motion.div>
+        ) : subPage === 'display' && setDisplaySettings ? (
+          <motion.div
+            key="settings-sub-display"
+            initial={{ opacity: 0, x: isRTL ? -26 : 26 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: isRTL ? -22 : 22 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+          >
+            <DisplaySettings
+              displaySettings={displaySettings}
+              setDisplaySettings={setDisplaySettings}
+              themeMode={themeMode}
+              setThemeMode={setThemeMode}
+              colorPalette={colorPalette}
+              setColorPalette={setColorPalette}
+              customBackground={customBackground}
+              setCustomBackground={setCustomBackground}
+              customBgBlur={customBgBlur}
+              setCustomBgBlur={setCustomBgBlur}
+              customBgDim={customBgDim}
+              setCustomBgDim={setCustomBgDim}
+              glassCardCovers={glassCardCovers}
+              setGlassCardCovers={setGlassCardCovers}
+              onBack={() => setSubPage('main')}
+              theme={theme}
+              t={t}
+              language={language}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="settings-main"
+            initial={{ opacity: 0, x: isRTL ? 20 : -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: isRTL ? 20 : -20 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              flex: 1,
+              width: '100%',
+              padding: 'clamp(16px, 3.5vw, 40px)',
+              paddingBottom: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              boxSizing: 'border-box',
+            }}
+          >
       <h1
         style={{
           fontSize: '32px',
@@ -534,86 +581,39 @@ export const Settings = ({
           />
         </SettingRow>
 
-        {/* ردیف انتخاب تم برنامه (سیستم / روشن / تیره) به صورت منوی بازشونده */}
-        <SettingRow
-          icon={
-            themeMode === 'system'
-              ? <Smartphone size={22} color={theme.colors.primary} />
-              : themeMode === 'light'
-              ? <Sun size={22} color={theme.colors.primary} />
-              : <Moon size={22} color={theme.colors.primary} />
-          }
-          label={t.theme}
+        {/* ردیف ورود به بخش جامع ظاهر و نمایش (Display) */}
+        <SettingsNavEntry
+          icon={<Monitor size={21} color={theme.colors.primary} />}
+          title={t.displayMenuTitle || 'ظاهر و نمایش (Display)'}
+          subtitle={[
+            themeMode === 'system' ? t.system || 'سیستم' : themeMode === 'dark' ? t.dark : t.light,
+            displaySettings.oledPureBlack && theme.isDark ? 'OLED' : null,
+            displaySettings.playerBarStyle === 'docked'
+              ? t.playerBarDocked || 'تمام‌عرض'
+              : t.playerBarFloating || 'شناور',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          badge={displayBadgeText}
+          accent={theme.colors.primary}
+          isRTL={isRTL}
           theme={theme}
-          zIndex={20}
-        >
-          <DropdownSelect
-            value={themeMode}
-            options={[
-              {
-                id: 'system',
-                label: t.system || 'پیش‌فرض سیستم / گوشی',
-                icon: <Smartphone size={18} />,
-              },
-              {
-                id: 'light',
-                label: t.light || 'روشن',
-                icon: <Sun size={18} />,
-              },
-              {
-                id: 'dark',
-                label: t.dark || 'تیره',
-                icon: <Moon size={18} />,
-              },
-            ]}
-            onChange={(mode) => setThemeMode(mode)}
-            theme={theme}
-            minWidth={200}
-            ariaLabel={t.theme}
-          />
-        </SettingRow>
+          onClick={() => setSubPage('display')}
+        />
 
-        {/* ردیف انتخاب پالت رنگی با پیش‌نمایش کپسولی شیشه‌ای */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: `1px solid ${theme.colors.border}`,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '15px',
-              marginBottom: '15px',
-            }}
-          >
-            <Palette size={22} color={theme.colors.primary} />
-            <span
-              style={{
-                fontSize: '16px',
-                fontWeight: '600',
-                color: theme.colors.textPrimary,
-              }}
-            >
-              {t.colorPalette}
-            </span>
-          </div>
+        {/* ردیف ورود به بخش جامع صدا (Sound) */}
+        <SettingsNavEntry
+          icon={<Volume2 size={21} color={theme.colors.accent || theme.colors.primary} />}
+          title={t.soundMenuTitle || 'صدا و افکت‌های صوتی'}
+          subtitle={soundSummaryText}
+          badge={soundBadgeText}
+          accent={theme.colors.accent || theme.colors.primary}
+          isRTL={isRTL}
+          theme={theme}
+          onClick={() => setSubPage('sound')}
+        />
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            {PALETTES.map((palette) => (
-              <PaletteSwatch
-                key={palette.id}
-                palette={palette}
-                selected={colorPalette === palette.id || (colorPalette === 'default' && palette.id === 'classic-blue')}
-                onClick={() => setColorPalette(palette.id)}
-                theme={theme}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ردیف جلوه کاور شیشه‌ای روی کارت آهنگ‌ها (مطابق عکس ارسالی کاربر) */}
+        {/* بخش تایمر خواب (Sleep Timer) */}
         <div
           style={{
             padding: '20px 24px',
@@ -621,11 +621,12 @@ export const Settings = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
             gap: '16px',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <Layers size={22} color={theme.colors.primary} />
+            <Timer size={22} color={theme.colors.primary} />
             <div>
               <div
                 style={{
@@ -634,310 +635,84 @@ export const Settings = ({
                   color: theme.colors.textPrimary,
                 }}
               >
-                {t.glassCardCovers || 'کاور شیشه‌ای روی کارت آهنگ‌ها'}
+                {t.sleepTimer || 'تایمر خواب'}
               </div>
               <div
                 style={{
                   fontSize: '12.5px',
-                  color: theme.colors.textSecondary,
+                  color:
+                    sleepTimer.mode !== 'off'
+                      ? theme.colors.primary
+                      : theme.colors.textSecondary,
+                  fontWeight: sleepTimer.mode !== 'off' ? 700 : 400,
+                  fontVariantNumeric: 'tabular-nums',
                   marginTop: '3px',
                 }}
               >
-                {t.glassCardCoversDesc || 'نمایش تصویر کاور هر آهنگ به صورت پس‌زمینه شیشه‌ای روی کارت آن'}
+                {sleepStatusLabel}
               </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            role="switch"
-            aria-checked={glassCardCovers}
-            onClick={() => setGlassCardCovers?.(!glassCardCovers)}
-            style={{
-              position: 'relative',
-              direction: 'ltr',
-              width: '48px',
-              height: '28px',
-              borderRadius: '14px',
-              backgroundColor: glassCardCovers
-                ? theme.colors.primary
-                : theme.colors.border,
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background-color 0.25s ease',
-              padding: 0,
-              outline: 'none',
-              flexShrink: 0,
-            }}
-          >
-            <motion.span
-              initial={false}
-              animate={{
-                left: glassCardCovers ? 23 : 3,
-              }}
-              transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-              style={{
-                position: 'absolute',
-                top: '3px',
-                width: '22px',
-                height: '22px',
-                borderRadius: '50%',
-                backgroundColor: '#ffffff',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.28)',
-              }}
-            />
-          </button>
-        </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'off', label: t.sleepTimerOff || 'خاموش' },
+              { id: '15', mins: 15, label: `15 ${t.sleepMinutes || 'دقیقه'}` },
+              { id: '30', mins: 30, label: `30 ${t.sleepMinutes || 'دقیقه'}` },
+              { id: '60', mins: 60, label: `60 ${t.sleepMinutes || 'دقیقه'}` },
+              { id: 'songEnd', label: t.endOfSong || 'پایان آهنگ فعلی' },
+            ].map((opt) => {
+              const isActive =
+                opt.id === 'off'
+                  ? sleepTimer.mode === 'off'
+                  : opt.id === 'songEnd'
+                  ? sleepTimer.mode === 'songEnd'
+                  : sleepTimer.mode === 'until' &&
+                    sleepTimer.durationMinutes === opt.mins;
 
-        {/* بخش پس‌زمینه دلخواه برنامه (Custom Wallpaper) */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: `1px solid ${theme.colors.border}`,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '14px',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <ImageIcon size={22} color={theme.colors.primary} />
-              <div>
-                <span
-                  style={{
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: theme.colors.textPrimary,
-                    display: 'block',
-                  }}
-                >
-                  {t.customBackground || 'پس‌زمینه دلخواه برنامه'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    color: theme.colors.textSecondary,
-                    marginTop: '2px',
-                    display: 'block',
-                  }}
-                >
-                  {t.selectWallpaperHint || 'تصویر دلخواه خود را برای بک‌گراند شیشه‌ای برنامه تنظیم کنید.'}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {customBackground && (
+              return (
                 <button
+                  key={opt.id}
                   type="button"
-                  onClick={() => setCustomBackground?.(null)}
-                  title={t.resetWallpaper || 'بازگشت به پیش‌فرض'}
+                  onClick={() => {
+                    if (!onSetSleepTimer) return;
+                    if (opt.id === 'off') {
+                      onSetSleepTimer({ mode: 'off' });
+                    } else if (opt.id === 'songEnd') {
+                      onSetSleepTimer({ mode: 'songEnd' });
+                    } else if (opt.mins) {
+                      onSetSleepTimer({
+                        mode: 'until',
+                        endsAt: Date.now() + opt.mins * 60 * 1000,
+                        durationMinutes: opt.mins,
+                      });
+                    }
+                  }}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '7px 12px',
-                    borderRadius: '12px',
-                    border: `1px solid ${theme.colors.border}`,
-                    backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
-                    color: theme.colors.textSecondary,
+                    padding: '7px 13px',
+                    borderRadius: theme.radius.md || '10px',
+                    border: `1px solid ${
+                      isActive ? theme.colors.primary : theme.colors.border
+                    }`,
+                    backgroundColor: isActive
+                      ? `${theme.colors.primary}22`
+                      : theme.colors.background,
+                    color: isActive
+                      ? theme.colors.primary
+                      : theme.colors.textPrimary,
+                    fontSize: '13px',
+                    fontWeight: isActive ? 700 : 500,
                     cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 600,
+                    fontVariantNumeric: 'tabular-nums',
+                    transition: 'background-color 0.15s ease, border-color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                   }}
                 >
-                  <RefreshCw size={14} />
-                  <span>{t.resetWallpaper || 'پیش‌فرض'}</span>
+                  {opt.label}
                 </button>
-              )}
-
-              <input
-                ref={wallpaperInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleWallpaperUpload}
-                style={{ display: 'none' }}
-              />
-
-              <button
-                type="button"
-                onClick={() => wallpaperInputRef.current?.click()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '7px 14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  backgroundColor: theme.colors.primary,
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  boxShadow: `0 3px 10px ${theme.colors.primary}44`,
-                }}
-              >
-                <Upload size={14} />
-                <span>{t.uploadWallpaper || 'انتخاب عکس از دستگاه'}</span>
-              </button>
-            </div>
+              );
+            })}
           </div>
-
-          {/* پیش‌فرض‌های برگزیده والپیپر */}
-          <div style={{ marginTop: '14px' }}>
-            <div
-              style={{
-                fontSize: '12px',
-                fontWeight: 600,
-                color: theme.colors.textSecondary,
-                marginBottom: '8px',
-              }}
-            >
-              {t.wallpaperPresets || 'پیش‌فرض‌های برگزیده'}:
-            </div>
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
-              {WALLPAPER_PRESETS.map((preset) => {
-                const isSelected = customBackground === preset.url;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => setCustomBackground?.(preset.url)}
-                    style={{
-                      position: 'relative',
-                      width: '74px',
-                      height: '52px',
-                      borderRadius: '10px',
-                      overflow: 'hidden',
-                      border: isSelected
-                        ? `2.5px solid ${theme.colors.primary}`
-                        : `1px solid ${theme.colors.border}`,
-                      boxShadow: isSelected ? `0 0 12px ${theme.colors.primary}66` : 'none',
-                      cursor: 'pointer',
-                      padding: 0,
-                      flexShrink: 0,
-                      outline: 'none',
-                    }}
-                    title={preset.label}
-                  >
-                    <img
-                      src={preset.url}
-                      alt={preset.label}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                      }}
-                    />
-                    {isSelected && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          backgroundColor: `${theme.colors.primary}40`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Check size={18} color="#fff" strokeWidth={3} />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* کنترل‌های اسلایدر بلور و تیرگی در صورت فعال بودن والپیپر */}
-          {customBackground && (
-            <div
-              style={{
-                marginTop: '16px',
-                padding: '12px 14px',
-                borderRadius: '12px',
-                backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '14px',
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '12px',
-                    color: theme.colors.textSecondary,
-                    marginBottom: '6px',
-                  }}
-                >
-                  <span>{t.wallpaperBlur || 'میزان تاری (Blur)'}</span>
-                  <span style={{ fontWeight: 700, color: theme.colors.textPrimary }}>
-                    {customBgBlur}px
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={30}
-                  step={1}
-                  value={customBgBlur}
-                  onChange={(e) => setCustomBgBlur?.(Number(e.target.value))}
-                  style={{
-                    width: '100%',
-                    accentColor: theme.colors.primary,
-                    cursor: 'pointer',
-                  }}
-                />
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '12px',
-                    color: theme.colors.textSecondary,
-                    marginBottom: '6px',
-                  }}
-                >
-                  <span>{t.wallpaperDim || 'تیرگی لایه محافظ'}</span>
-                  <span style={{ fontWeight: 700, color: theme.colors.textPrimary }}>
-                    {customBgDim}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={10}
-                  max={85}
-                  step={1}
-                  value={customBgDim}
-                  onChange={(e) => setCustomBgDim?.(Number(e.target.value))}
-                  style={{
-                    width: '100%',
-                    accentColor: theme.colors.primary,
-                    cursor: 'pointer',
-                  }}
-                />
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* بخش اکولایزر ۵ بانده و تقویت باس */}
-        <EqualizerControl
-          settings={equalizerSettings}
-          onChange={setEqualizerSettings}
-          theme={theme}
-          t={t}
-        />
 
         {/* ردیف بارگذاری فایل یا پوشه صوتی */}
         <SettingRow
@@ -1033,6 +808,136 @@ export const Settings = ({
           </SettingRow>
         )}
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+};
+
+/** ردیف ورودی زیبا و تعاملی برای زیرصفحه‌های تنظیمات */
+const SettingsNavEntry = ({
+  icon,
+  title,
+  subtitle,
+  badge,
+  accent,
+  isRTL,
+  theme,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  badge?: string | null;
+  accent: string;
+  isRTL: boolean;
+  theme: any;
+  onClick: () => void;
+}) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
+        padding: '18px 24px',
+        border: 'none',
+        borderBottom: `1px solid ${theme.colors.border}`,
+        background: hovered
+          ? `linear-gradient(${isRTL ? '270deg' : '90deg'}, ${withAlpha(
+              accent,
+              theme.isDark ? 0.11 : 0.08
+            )} 0%, transparent 85%)`
+          : 'transparent',
+        cursor: 'pointer',
+        textAlign: 'start',
+        transition: 'background 0.22s ease, opacity 0.18s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: 0 }}>
+        <div
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            background: withAlpha(accent, hovered ? (theme.isDark ? 0.22 : 0.16) : theme.isDark ? 0.13 : 0.1),
+            border: `1px solid ${withAlpha(accent, hovered ? 0.42 : 0.2)}`,
+            boxShadow: hovered ? `0 6px 16px ${withAlpha(accent, 0.22)}` : 'none',
+            transform: hovered ? 'scale(1.06)' : 'scale(1)',
+            transition: 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.22s ease',
+          }}
+        >
+          {icon}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: '15.5px',
+              fontWeight: 650,
+              color: theme.colors.textPrimary,
+            }}
+          >
+            {title}
+          </div>
+          <div
+            style={{
+              fontSize: '12.5px',
+              color: theme.colors.textSecondary,
+              marginTop: '3px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {subtitle}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+        {badge && (
+          <span
+            style={{
+              fontSize: '11.5px',
+              fontWeight: 600,
+              padding: '4px 10px',
+              borderRadius: theme.radius.sm || '8px',
+              backgroundColor: withAlpha(accent, theme.isDark ? 0.16 : 0.11),
+              color: accent,
+              border: `1px solid ${withAlpha(accent, 0.24)}`,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {badge}
+          </span>
+        )}
+        <div
+          style={{
+            color: hovered ? accent : theme.colors.textSecondary,
+            display: 'flex',
+            alignItems: 'center',
+            transform: hovered
+              ? `translateX(${isRTL ? '-4px' : '4px'})`
+              : 'translateX(0)',
+            transition: 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease',
+          }}
+        >
+          {isRTL ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+        </div>
+      </div>
+    </button>
   );
 };

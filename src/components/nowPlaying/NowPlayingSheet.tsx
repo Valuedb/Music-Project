@@ -164,7 +164,7 @@ export const NowPlayingSheet = memo(({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#ffffff',
-                    transition: 'background-color 0.2s',
+                    transition: 'background-color 0.2s, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)')}

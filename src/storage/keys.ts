@@ -14,4 +14,6 @@ export const STORAGE_KEYS = {
   repeatMode: 'playerRepeatMode',
   shuffle: 'playerShuffle',
   lastPlayback: 'playerLastPlayback',
+  soundSettings: 'soundSettings',
+  displaySettings: 'displaySettings',
 } as const;

@@ -32,6 +32,12 @@ export const usePlayer = (songs: readonly Song[]) => {
   const playedIds = useRef<Set<string>>(new Set());
   /** تاریخچه‌ی پخش برای دکمه‌ی «قبلی» در حالت شافل */
   const history = useRef<string[]>([]);
+  /** کش پیش‌بینی آهنگ بعدی در حالت شافل تا peekNext و playNext هم‌خوان باشند */
+  const prepickedNextRef = useRef<{
+    forId: string | null;
+    song: Song | null;
+    nextPlayed: Set<string>;
+  } | null>(null);
 
   const baseList: readonly Song[] = queue.length > 0 ? queue : songs;
 
@@ -45,6 +51,7 @@ export const usePlayer = (songs: readonly Song[]) => {
   );
 
   const start = useCallback((song: Song) => {
+    prepickedNextRef.current = null;
     setCurrentSong(song);
     setPlayToken((token) => token + 1);
   }, []);
@@ -65,6 +72,30 @@ export const usePlayer = (songs: readonly Song[]) => {
     [remember, start]
   );
 
+  /** پیش‌نمایش بدون تغییر وضعیت برای آماده‌سازی Crossfade / Gapless */
+  const peekNext = useCallback((): Song | null => {
+    const currentId = currentSong?.id ?? null;
+    const loop = repeatMode === 'all';
+    if (!isShuffle) {
+      return nextInOrder(baseList, currentId, loop);
+    }
+    const cached = prepickedNextRef.current;
+    if (
+      cached &&
+      cached.forId === currentId &&
+      (!cached.song || baseList.some((s) => s.id === cached.song!.id))
+    ) {
+      return cached.song;
+    }
+    const pick = pickNextShuffled(baseList, currentId, playedIds.current, loop);
+    prepickedNextRef.current = {
+      forId: currentId,
+      song: pick.song,
+      nextPlayed: pick.played,
+    };
+    return pick.song;
+  }, [baseList, currentSong?.id, isShuffle, repeatMode]);
+
   /** رفتن به آهنگ بعدی. اگه آهنگ بعدی‌ای نباشه false برمی‌گردونه */
   const playNext = useCallback((): boolean => {
     const currentId = currentSong?.id ?? null;
@@ -72,9 +103,20 @@ export const usePlayer = (songs: readonly Song[]) => {
     let target: Song | null;
 
     if (isShuffle) {
-      const pick = pickNextShuffled(baseList, currentId, playedIds.current, loop);
-      playedIds.current = pick.played;
-      target = pick.song;
+      const cached = prepickedNextRef.current;
+      if (
+        cached &&
+        cached.forId === currentId &&
+        (!cached.song || baseList.some((s) => s.id === cached.song!.id))
+      ) {
+        playedIds.current = cached.nextPlayed;
+        target = cached.song;
+      } else {
+        const pick = pickNextShuffled(baseList, currentId, playedIds.current, loop);
+        playedIds.current = pick.played;
+        target = pick.song;
+      }
+      prepickedNextRef.current = null;
     } else {
       target = nextInOrder(baseList, currentId, loop);
     }
@@ -106,13 +148,17 @@ export const usePlayer = (songs: readonly Song[]) => {
 
   const setShuffle = useCallback(
     (value: boolean) => {
+      prepickedNextRef.current = null;
       setIsShuffleState(value);
       playedIds.current = new Set(currentSong ? [currentSong.id] : []);
     },
     [currentSong, setIsShuffleState]
   );
 
-  const addToQueue = useCallback((song: Song) => setQueue((prev) => [...prev, song]), []);
+  const addToQueue = useCallback((song: Song) => {
+    prepickedNextRef.current = null;
+    setQueue((prev) => [...prev, song]);
+  }, []);
 
   /** حذف با اندیس (نه id) تا اگه یه آهنگ دو بار توی صف بود، فقط همون یکی حذف بشه */
   const removeFromQueueAt = useCallback(
@@ -206,6 +252,7 @@ export const usePlayer = (songs: readonly Song[]) => {
     setShuffle,
     restoreSong,
     playSongFromList,
+    peekNext,
     playNext,
     playPrev,
     addToQueue,

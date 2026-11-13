@@ -34,3 +34,56 @@ export const isEqualizerSettings = (value: unknown): value is import('./index').
   value.bands.length === 5 &&
   value.bands.every((b) => typeof b === 'number') &&
   typeof value.bassBoost === 'number';
+
+export const isSoundSettings = (value: unknown): value is import('./index').SoundSettings =>
+  isRecord(value) &&
+  typeof value.crossfadeSeconds === 'number' &&
+  typeof value.fadeOnPlayPause === 'boolean' &&
+  typeof value.gaplessPlayback === 'boolean' &&
+  typeof value.playbackSpeed === 'number' &&
+  typeof value.preservePitch === 'boolean' &&
+  (value.reverbRoom === 'off' ||
+    value.reverbRoom === 'studio' ||
+    value.reverbRoom === 'hall' ||
+    value.reverbRoom === 'cathedral') &&
+  typeof value.reverbMix === 'number' &&
+  typeof value.spatialSurround === 'number' &&
+  typeof value.volumeNormalization === 'boolean' &&
+  typeof value.stereoBalance === 'number' &&
+  typeof value.monoAudio === 'boolean' &&
+  typeof value.preampDb === 'number' &&
+  typeof value.maxVolumeLimit === 'number' &&
+  (value.eqMode === '5band' || value.eqMode === '10band') &&
+  Array.isArray(value.bands10) &&
+  value.bands10.length === 10 &&
+  value.bands10.every((b) => typeof b === 'number') &&
+  (value.outputProfile === 'default' ||
+    value.outputProfile === 'headphones' ||
+    value.outputProfile === 'speaker') &&
+  typeof value.liveVisualizer === 'boolean';
+
+export const isDisplaySettings = (value: unknown): value is import('./index').DisplaySettings =>
+  isRecord(value) &&
+  typeof value.adaptiveArtworkAccent === 'boolean' &&
+  typeof value.adaptiveArtworkWallpaper === 'boolean' &&
+  (value.fontFamily === 'vazirmatn' ||
+    value.fontFamily === 'system' ||
+    value.fontFamily === 'editorial') &&
+  typeof value.fontScale === 'number' &&
+  (value.listDensity === 'compact' ||
+    value.listDensity === 'comfortable' ||
+    value.listDensity === 'spacious') &&
+  (value.cornerStyle === 'sharp' ||
+    value.cornerStyle === 'balanced' ||
+    value.cornerStyle === 'pill') &&
+  typeof value.glassOpacity === 'number' &&
+  typeof value.glassBlur === 'number' &&
+  typeof value.oledPureBlack === 'boolean' &&
+  typeof value.ambientGlow === 'boolean' &&
+  (value.playerBarStyle === 'floating' || value.playerBarStyle === 'docked') &&
+  (value.artworkStyle === 'classic' || value.artworkStyle === 'vinyl') &&
+  (value.visualizerStyle === 'bars' ||
+    value.visualizerStyle === 'wave' ||
+    value.visualizerStyle === 'ring') &&
+  typeof value.reduceMotion === 'boolean';
+

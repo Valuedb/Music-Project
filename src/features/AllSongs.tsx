@@ -40,6 +40,9 @@ interface AllSongsProps {
   onBack?: () => void;
   emptyMessage?: string;
   glassCardCovers?: boolean;
+  headerActions?: React.ReactNode;
+  onBulkDeleteSongs?: (ids: string[]) => void;
+  deleteActionLabel?: string;
 }
 
 // ================= کامپوننت اصلی =================
@@ -63,6 +66,9 @@ export const AllSongs = ({
   onBack,
   emptyMessage,
   glassCardCovers = true,
+  headerActions,
+  onBulkDeleteSongs,
+  deleteActionLabel,
 }: AllSongsProps) => {
   // استیت‌های انتخاب
   const [selectedSongs, setSelectedSongs] = useState<string[]>([]);
@@ -70,9 +76,11 @@ export const AllSongs = ({
 
   // استیت‌های منوها
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [menuDirection, setMenuDirection] = useState<'up' | 'down'>(
-    'down'
-  );
+  const [menuPosition, setMenuPosition] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+  }>({ top: 0, right: 16 });
   const [isTopMenuOpen, setIsTopMenuOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'artist'>(
@@ -102,6 +110,7 @@ export const AllSongs = ({
   const songMenuRefs = useRef<{
     [key: string]: HTMLDivElement | null;
   }>({});
+  const activeSongDropdownRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
 
   // ================= افکت‌ها =================
@@ -125,7 +134,9 @@ export const AllSongs = ({
       }
       if (activeMenuId) {
         const menuRef = songMenuRefs.current[activeMenuId];
-        if (menuRef && !menuRef.contains(event.target as Node)) {
+        const clickedTrigger = menuRef?.contains(event.target as Node);
+        const clickedDropdown = activeSongDropdownRef.current?.contains(event.target as Node);
+        if (!clickedTrigger && !clickedDropdown) {
           setActiveMenuId(null);
         }
       }
@@ -134,6 +145,33 @@ export const AllSongs = ({
     return () =>
       document.removeEventListener('mousedown', handleClickOutside);
   }, [activeMenuId, isSortMenuOpen, isTopMenuOpen]);
+
+  /** بستن منوی سه‌نقطه هنگام اسکرول، تغییر اندازه یا فشردن Escape */
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClose = (e: Event) => {
+      if (
+        e.type === 'scroll' &&
+        activeSongDropdownRef.current &&
+        e.target instanceof Node &&
+        activeSongDropdownRef.current.contains(e.target)
+      ) {
+        return;
+      }
+      setActiveMenuId(null);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveMenuId(null);
+    };
+    window.addEventListener('scroll', handleClose, true);
+    window.addEventListener('resize', handleClose);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeMenuId]);
 
   // ================= توابع کمکی =================
 
@@ -221,7 +259,11 @@ export const AllSongs = ({
   /** حذف گروهی آهنگ‌های انتخاب شده */
   const handleBulkDelete = () => {
     if (window.confirm(t.deleteConfirm)) {
-      selectedSongs.forEach((id) => onDeleteSong(id));
+      if (onBulkDeleteSongs) {
+        onBulkDeleteSongs(selectedSongs);
+      } else {
+        selectedSongs.forEach((id) => onDeleteSong(id));
+      }
       exitSelectMode();
     }
   };
@@ -263,18 +305,46 @@ export const AllSongs = ({
     if (isSelectMode) exitSelectMode();
   };
 
-  /** محاسبه جهت منو با در نظر گرفتن ارتفاع نوار بالای صفحه و پلیر شناور پایین */
+  /** محاسبه موقعیت منوی سه‌نقطه در ویوپورت با در نظر گرفتن نوار بالا و پلیر شناور پایین */
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     songId: string
   ) => {
     e.stopPropagation();
+    if (activeMenuId === songId) {
+      setActiveMenuId(null);
+      return;
+    }
     const buttonRect = e.currentTarget.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - buttonRect.bottom - 120;
-    const spaceAbove = buttonRect.top - 110;
-    setMenuDirection(spaceBelow < 260 && spaceAbove > spaceBelow ? 'up' : 'down');
-    setActiveMenuId(activeMenuId === songId ? null : songId);
+    const estimatedMenuHeight = onToggleFavorite ? 245 : 208;
+    const spaceBelow = window.innerHeight - buttonRect.bottom - 115;
+    const spaceAbove = buttonRect.top - 80;
+    const openUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+    const right = Math.max(12, window.innerWidth - buttonRect.right);
+
+    if (openUp) {
+      setMenuPosition({
+        bottom: Math.max(12, window.innerHeight - buttonRect.top + 6),
+        right,
+      });
+    } else {
+      const rawTop = buttonRect.bottom + 6;
+      const maxTop = Math.max(12, window.innerHeight - estimatedMenuHeight - 16);
+      setMenuPosition({
+        top: Math.min(rawTop, maxTop),
+        right,
+      });
+    }
+    setActiveMenuId(songId);
   };
+
+  const activeMenuSong = useMemo(
+    () =>
+      activeMenuId
+        ? filteredAndSortedSongs.find((s) => s.id === activeMenuId) ?? null
+        : null,
+    [activeMenuId, filteredAndSortedSongs]
+  );
 
   const menuHoverBg = theme.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.07)';
   const dangerHoverBg = withAlpha(theme.colors.danger || '#ff453a', 0.15);
@@ -310,7 +380,7 @@ export const AllSongs = ({
                   fontWeight: '600',
                   padding: '7px 14px',
                   borderRadius: theme.radius.md,
-                  transition: 'transform 0.2s, background-color 0.2s',
+                  transition: 'transform 0.2s, background-color 0.2s, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                 }}
               >
                 <ArrowLeft size={16} /> {t.back}
@@ -337,33 +407,36 @@ export const AllSongs = ({
             </span>
           </div>
 
-          {filteredAndSortedSongs.length > 0 && !isSelectMode && (
-            <button
-              onClick={() =>
-                onPlaySongFromList(
-                  filteredAndSortedSongs[0],
-                  filteredAndSortedSongs
-                )
-              }
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 16px',
-                borderRadius: theme.radius.md,
-                border: 'none',
-                backgroundColor: theme.colors.primary,
-                color: '#fff',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '13px',
-                transition: 'opacity 0.2s',
-              }}
-            >
-              <Play size={15} fill="#fff" />
-              <span>{t.playAll || 'پخش همه'}</span>
-            </button>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {headerActions}
+            {filteredAndSortedSongs.length > 0 && !isSelectMode && (
+              <button
+                onClick={() =>
+                  onPlaySongFromList(
+                    filteredAndSortedSongs[0],
+                    filteredAndSortedSongs
+                  )
+                }
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 16px',
+                  borderRadius: theme.radius.md,
+                  border: 'none',
+                  backgroundColor: theme.colors.primary,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                <Play size={15} fill="#fff" />
+                <span>{t.playAll || 'پخش همه'}</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -435,7 +508,7 @@ export const AllSongs = ({
                       (e.currentTarget.style.backgroundColor = 'transparent')
                     }
                   >
-                    <Trash2 size={16} /> {t.deleteSong}
+                    <Trash2 size={16} /> {deleteActionLabel || t.deleteSong}
                   </button>
                 </div>
               )}
@@ -506,7 +579,17 @@ export const AllSongs = ({
           </p>
         </div>
       ) : (
-        <div style={styles.listContainer}>
+        <div
+          style={{
+            ...styles.listContainer,
+            gap:
+              theme.display?.listDensity === 'compact'
+                ? '5px'
+                : theme.display?.listDensity === 'spacious'
+                ? '13px'
+                : '8px',
+          }}
+        >
           {filteredAndSortedSongs.map((song) => {
             const isHovered = hoveredSongId === song.id;
             const isSelected = selectedSongs.includes(song.id);
@@ -546,7 +629,7 @@ export const AllSongs = ({
                     style={{
                       position: 'absolute',
                       inset: 0,
-                      borderRadius: '16px',
+                      borderRadius: theme.radius?.lg || '16px',
                       overflow: 'hidden',
                       zIndex: 0,
                       pointerEvents: 'none',
@@ -786,132 +869,6 @@ export const AllSongs = ({
                     >
                       <MoreHorizontal size={18} />
                     </button>
-
-                    {isMenuOpen && (
-                      <div
-                        style={{
-                          ...styles.songMenu(theme),
-                          right: 0,
-                          direction: t.deleteSong === 'حذف آهنگ' ? 'rtl' : 'ltr',
-                          [menuDirection === 'up' ? 'bottom' : 'top']: '100%',
-                          marginTop: menuDirection === 'down' ? '6px' : 0,
-                          marginBottom: menuDirection === 'up' ? '6px' : 0,
-                        }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectSingleSong(song.id);
-                          }}
-                          style={menuItemStyle(theme)}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor = menuHoverBg)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor = 'transparent')
-                          }
-                        >
-                          <CheckSquare size={16} />{' '}
-                          {t.select || 'Select'}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingSong(song);
-                            setIsEditModalOpen(true);
-                            setActiveMenuId(null);
-                          }}
-                          style={menuItemStyle(theme)}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor = menuHoverBg)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor = 'transparent')
-                          }
-                        >
-                          <Edit2 size={16} />{' '}
-                          {t.editSong || 'Edit Song'}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenPlaylistModal(song.id);
-                          }}
-                          style={menuItemStyle(theme)}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor = menuHoverBg)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor = 'transparent')
-                          }
-                        >
-                          <FolderPlus size={16} />{' '}
-                          {t.addToPlaylist || 'Add to Playlist'}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addToQueue(song);
-                            setActiveMenuId(null);
-                          }}
-                          style={menuItemStyle(theme)}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor = menuHoverBg)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor = 'transparent')
-                          }
-                        >
-                          <ListPlus size={16} />{' '}
-                          {t.addToQueue}
-                        </button>
-                        {onToggleFavorite && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleFavorite(song.id);
-                              setActiveMenuId(null);
-                            }}
-                            style={menuItemStyle(theme)}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor = menuHoverBg)
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor = 'transparent')
-                            }
-                          >
-                            <Heart
-                              size={16}
-                              fill={song.isFavorite ? '#ff3b30' : 'none'}
-                              color={
-                                song.isFavorite
-                                  ? '#ff3b30'
-                                  : theme.colors.textPrimary
-                              }
-                            />{' '}
-                            {song.isFavorite
-                              ? t.removeFromFavorites || 'Remove from Favourites'
-                              : t.addToFavorites || 'Add to Favourites'}
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => handleDelete(e, song.id)}
-                          style={{
-                            ...menuItemStyle(theme),
-                            color: theme.colors.danger,
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor = dangerHoverBg)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor = 'transparent')
-                          }
-                        >
-                          <Trash2 size={16} />{' '}
-                          {t.deleteSong}
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -919,6 +876,135 @@ export const AllSongs = ({
           })}
         </div>
       )}
+
+      {/* منوی سه‌نقطه آهنگ به صورت Portal برای جلوگیری از بریده شدن در لیست‌های کوتاه */}
+      {activeMenuSong &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={activeSongDropdownRef}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              ...styles.songMenu(theme),
+              ...menuPosition,
+              direction: t.deleteSong === 'حذف آهنگ' ? 'rtl' : 'ltr',
+            }}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelectSingleSong(activeMenuSong.id);
+              }}
+              style={menuItemStyle(theme)}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = menuHoverBg)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = 'transparent')
+              }
+            >
+              <CheckSquare size={16} />{' '}
+              {t.select || 'Select'}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingSong(activeMenuSong);
+                setIsEditModalOpen(true);
+                setActiveMenuId(null);
+              }}
+              style={menuItemStyle(theme)}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = menuHoverBg)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = 'transparent')
+              }
+            >
+              <Edit2 size={16} />{' '}
+              {t.editSong || 'Edit Song'}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenPlaylistModal(activeMenuSong.id);
+              }}
+              style={menuItemStyle(theme)}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = menuHoverBg)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = 'transparent')
+              }
+            >
+              <FolderPlus size={16} />{' '}
+              {t.addToPlaylist || 'Add to Playlist'}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                addToQueue(activeMenuSong);
+                setActiveMenuId(null);
+              }}
+              style={menuItemStyle(theme)}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = menuHoverBg)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = 'transparent')
+              }
+            >
+              <ListPlus size={16} />{' '}
+              {t.addToQueue}
+            </button>
+            {onToggleFavorite && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(activeMenuSong.id);
+                  setActiveMenuId(null);
+                }}
+                style={menuItemStyle(theme)}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = menuHoverBg)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = 'transparent')
+                }
+              >
+                <Heart
+                  size={16}
+                  fill={activeMenuSong.isFavorite ? '#ff3b30' : 'none'}
+                  color={
+                    activeMenuSong.isFavorite
+                      ? '#ff3b30'
+                      : theme.colors.textPrimary
+                  }
+                />{' '}
+                {activeMenuSong.isFavorite
+                  ? t.removeFromFavorites || 'Remove from Favourites'
+                  : t.addToFavorites || 'Add to Favourites'}
+              </button>
+            )}
+            <button
+              onClick={(e) => handleDelete(e, activeMenuSong.id)}
+              style={{
+                ...menuItemStyle(theme),
+                color: theme.colors.danger,
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = dangerHoverBg)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = 'transparent')
+              }
+            >
+              <Trash2 size={16} />{' '}
+              {deleteActionLabel || t.deleteSong}
+            </button>
+          </div>,
+          document.body
+        )}
 
       {/* مودال ویرایش */}
       <EditSongModal
@@ -1050,7 +1136,7 @@ const menuItemStyle = (
   gap: '9px',
   fontSize: '13px',
   fontWeight: active ? 600 : 500,
-  transition: 'background-color 0.12s ease',
+  transition: 'background-color 0.12s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
   cursor: 'pointer',
 });
 
@@ -1058,6 +1144,8 @@ const menuItemStyle = (
 const styles = {
   container: {
     flex: 1,
+    minHeight: '100%',
+    boxSizing: 'border-box' as const,
     padding:
       'clamp(12px, 2vw, 24px) clamp(16px, 4vw, 40px) 130px',
     overflowY: 'auto' as const,
@@ -1128,14 +1216,24 @@ const styles = {
     alignItems: 'center',
     direction: 'ltr' as const,
     textAlign: 'left' as const,
-    gap: '14px',
-    padding: '8px 14px',
-    borderRadius: '16px',
+    gap:
+      theme.display?.listDensity === 'compact'
+        ? '10px'
+        : theme.display?.listDensity === 'spacious'
+        ? '16px'
+        : '14px',
+    padding:
+      theme.display?.listDensity === 'compact'
+        ? '5px 12px'
+        : theme.display?.listDensity === 'spacious'
+        ? '12px 16px'
+        : '8px 14px',
+    borderRadius: theme.radius?.lg || '16px',
     cursor: 'pointer',
     position: 'relative' as const,
     transition: 'background-color 0.2s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1)',
-    backdropFilter: 'blur(24px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    backdropFilter: `blur(${theme.display?.glassBlur ?? 24}px) saturate(180%)`,
+    WebkitBackdropFilter: `blur(${theme.display?.glassBlur ?? 24}px) saturate(180%)`,
     backgroundColor: isSelected
       ? `${theme.colors.primary}28`
       : isCurrentSong
@@ -1247,7 +1345,7 @@ const styles = {
     transition: 'all 0.2s',
   }),
   songMenu: (theme: any) => ({
-    position: 'absolute' as const,
+    position: 'fixed' as const,
     padding: '5px',
     backgroundColor: theme.isDark
       ? withAlpha(theme.colors.surfaceSolid, 0.96)
@@ -1257,9 +1355,13 @@ const styles = {
     borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.border}`,
     boxShadow: theme.shadows.hard,
-    zIndex: 999,
+    zIndex: 99999,
     minWidth: '188px',
-    overflow: 'hidden',
+    maxWidth: 'calc(100vw - 24px)',
+    maxHeight: 'calc(100vh - 24px)',
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
+    fontFamily: theme.fonts?.main,
   }),
   modalOverlay: {
     position: 'fixed' as const,

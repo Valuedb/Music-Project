@@ -1,13 +1,23 @@
 import React from 'react';
 import { Sliders, Volume2, Sparkles } from 'lucide-react';
-import type { EqualizerPreset, EqualizerSettings } from '../types';
-import { EQ_BAND_LABELS, EQ_PRESETS } from '../player/audioEffects';
+import type { EqBandMode, EqualizerPreset, EqualizerSettings } from '../types';
+import {
+  EQ_BAND_LABELS,
+  EQ_PRESETS,
+  EQ10_BAND_LABELS,
+  EQ10_PRESETS,
+} from '../player/audioEffects';
 
 interface EqualizerControlProps {
   settings: EqualizerSettings;
   onChange: (newSettings: EqualizerSettings) => void;
+  eqMode?: EqBandMode;
+  bands10?: number[];
+  onChangeEqMode?: (mode: EqBandMode) => void;
+  onChangeBands10?: (bands: number[]) => void;
   theme: any;
   t: any;
+  embedded?: boolean;
 }
 
 const PRESET_KEYS: { id: EqualizerPreset; labelKey: string }[] = [
@@ -27,10 +37,17 @@ const PRESET_KEYS: { id: EqualizerPreset; labelKey: string }[] = [
 export const EqualizerControl: React.FC<EqualizerControlProps> = ({
   settings,
   onChange,
+  eqMode = '5band',
+  bands10 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  onChangeEqMode,
+  onChangeBands10,
   theme,
   t,
+  embedded = false,
 }) => {
   const { enabled, preset, bands, bassBoost } = settings;
+  const activeLabels = eqMode === '10band' ? EQ10_BAND_LABELS : EQ_BAND_LABELS;
+  const activeBands = eqMode === '10band' ? bands10 : bands;
 
   /** تغییر وضعیت فعال/غیرفعال بودن اکولایزر */
   const handleToggleEnabled = () => {
@@ -49,10 +66,22 @@ export const EqualizerControl: React.FC<EqualizerControlProps> = ({
       bands: [...p.bands],
       bassBoost: p.bassBoost,
     });
+    if (onChangeBands10 && EQ10_PRESETS[pId]) {
+      onChangeBands10([...EQ10_PRESETS[pId]]);
+    }
   };
 
   /** تغییر یکی از باندهای فرکانسی */
   const handleBandChange = (index: number, value: number) => {
+    if (eqMode === '10band' && onChangeBands10) {
+      const next10 = [...bands10];
+      next10[index] = value;
+      onChangeBands10(next10);
+      if (settings.preset !== 'custom') {
+        onChange({ ...settings, preset: 'custom' });
+      }
+      return;
+    }
     const newBands = [...bands];
     newBands[index] = value;
     onChange({
@@ -74,8 +103,8 @@ export const EqualizerControl: React.FC<EqualizerControlProps> = ({
   return (
     <div
       style={{
-        padding: '20px 24px',
-        borderBottom: `1px solid ${theme.colors.border}`,
+        padding: embedded ? '4px 0 0 0' : '20px 24px',
+        borderBottom: embedded ? 'none' : `1px solid ${theme.colors.border}`,
         boxSizing: 'border-box',
       }}
     >
@@ -113,40 +142,83 @@ export const EqualizerControl: React.FC<EqualizerControlProps> = ({
           </div>
         </div>
 
-        {/* سوییچ روشن/خاموش iOS-style */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          onClick={handleToggleEnabled}
-          style={{
-            position: 'relative',
-            width: '48px',
-            height: '28px',
-            borderRadius: '14px',
-            backgroundColor: enabled ? theme.colors.primary : theme.colors.border,
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'background-color 0.25s',
-            padding: 0,
-            outline: 'none',
-            flexShrink: 0,
-          }}
-        >
-          <span
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          {enabled && onChangeEqMode && (
+            <div
+              style={{
+                display: 'inline-flex',
+                padding: '3px',
+                borderRadius: '10px',
+                backgroundColor: theme.colors.background,
+                border: `1px solid ${theme.colors.border}`,
+                gap: '2px',
+              }}
+            >
+              {(['5band', '10band'] as EqBandMode[]).map((mode) => {
+                const isActive = eqMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => onChangeEqMode(mode)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '7px',
+                      border: 'none',
+                      backgroundColor: isActive ? theme.colors.primary : 'transparent',
+                      color: isActive ? '#ffffff' : theme.colors.textSecondary,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {mode === '5band'
+                      ? t.eqMode5Band || '۵ بانده'
+                      : t.eqMode10Band || '۱۰ بانده'}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* سوییچ روشن/خاموش iOS-style */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            onClick={handleToggleEnabled}
             style={{
-              position: 'absolute',
-              top: '3px',
-              left: enabled ? '23px' : '3px',
-              width: '22px',
-              height: '22px',
-              borderRadius: '50%',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.25)',
-              transition: 'left 0.25s',
+              position: 'relative',
+              direction: 'ltr',
+              width: '48px',
+              height: '28px',
+              borderRadius: '14px',
+              backgroundColor: enabled ? theme.colors.primary : theme.colors.border,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 0.25s, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+              padding: 0,
+              outline: 'none',
+              flexShrink: 0,
             }}
-          />
-        </button>
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: '3px',
+                left: enabled ? '23px' : '3px',
+                width: '22px',
+                height: '22px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.25)',
+                transition: 'left 0.25s',
+              }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* محتوای اکولایزر در صورت فعال بودن */}
@@ -302,7 +374,7 @@ export const EqualizerControl: React.FC<EqualizerControlProps> = ({
             </div>
           </div>
 
-          {/* ۵ باند فرکانسی گرافیکی */}
+          {/* باندهای فرکانسی گرافیکی (۵ یا ۱۰ بانده) */}
           <div>
             <div
               style={{
@@ -320,7 +392,7 @@ export const EqualizerControl: React.FC<EqualizerControlProps> = ({
                   color: theme.colors.textSecondary,
                 }}
               >
-                فرکانس‌های ۵ گانه (-12 تا +12 دسی‌بل)
+                {t.eqFrequenciesTitle || 'باندهای فرکانسی (-12 تا +12 دسی‌بل)'}
               </span>
             </div>
 
@@ -328,16 +400,20 @@ export const EqualizerControl: React.FC<EqualizerControlProps> = ({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(5, 1fr)',
-                gap: '8px',
+                gridTemplateColumns:
+                  eqMode === '10band'
+                    ? 'repeat(10, minmax(46px, 1fr))'
+                    : 'repeat(5, 1fr)',
+                gap: eqMode === '10band' ? '4px' : '8px',
                 backgroundColor: theme.colors.background,
                 padding: '16px 8px',
                 borderRadius: theme.radius.md,
                 border: `1px solid ${theme.colors.border}`,
+                overflowX: eqMode === '10band' ? 'auto' : 'visible',
               }}
             >
-              {EQ_BAND_LABELS.map((label, index) => {
-                const gain = bands[index] ?? 0;
+              {activeLabels.map((label, index) => {
+                const gain = activeBands[index] ?? 0;
                 // محاسبه درصد پر شدن نوار عمودی (بین -12 و +12)
                 const percent = Math.min(100, Math.max(0, ((gain + 12) / 24) * 100));
 

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Play,
   Pause,
@@ -100,9 +101,15 @@ export const Home: React.FC<HomeProps> = ({
   const [sleepMenuOpen, setSleepMenuOpen] = useState(false);
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [hoveredSongId, setHoveredSongId] = useState<string | null>(null);
+  const [hoveredHeroSong, setHoveredHeroSong] = useState(false);
   const [hoveredQuickId, setHoveredQuickId] = useState<string | null>(null);
   const [hoveredArtist, setHoveredArtist] = useState<string | null>(null);
-  const sleepMenuRef = useRef<HTMLDivElement>(null);
+  const sleepButtonRef = useRef<HTMLButtonElement>(null);
+  const sleepPortalRef = useRef<HTMLDivElement>(null);
+  const [sleepMenuPos, setSleepMenuPos] = useState<{ top: number; left: number }>({
+    top: 0,
+    left: 0,
+  });
 
   // به‌روزرسانی شمارنده تایمر خواب فقط وقتی تایمر زمان‌دار فعال است
   useEffect(() => {
@@ -112,17 +119,49 @@ export const Home: React.FC<HomeProps> = ({
     return () => window.clearInterval(id);
   }, [sleepTimer]);
 
-  // بستن منوی تایمر خواب با کلیک بیرون
+  const updateSleepMenuPos = useCallback(() => {
+    const btn = sleepButtonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = 195;
+    const menuEstHeight = sleepTimer.mode !== 'off' ? 236 : 190;
+    const rawLeft = isRTL ? rect.left : rect.right - menuWidth;
+    const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rawLeft));
+    const fitsBelow = rect.bottom + 8 + menuEstHeight <= window.innerHeight - 105;
+    const top = fitsBelow
+      ? rect.bottom + 8
+      : Math.max(12, rect.top - menuEstHeight - 8);
+    setSleepMenuPos({ top, left });
+  }, [isRTL, sleepTimer.mode]);
+
+  // بستن منوی تایمر خواب با کلیک بیرون یا Escape و همگام‌سازی مختصات هنگام اسکرول/تغییر اندازه
   useEffect(() => {
     if (!sleepMenuOpen) return;
+    updateSleepMenuPos();
     const handleOutside = (e: MouseEvent) => {
-      if (sleepMenuRef.current && !sleepMenuRef.current.contains(e.target as Node)) {
-        setSleepMenuOpen(false);
+      const target = e.target as Node;
+      if (
+        sleepButtonRef.current?.contains(target) ||
+        sleepPortalRef.current?.contains(target)
+      ) {
+        return;
       }
+      setSleepMenuOpen(false);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSleepMenuOpen(false);
     };
     document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [sleepMenuOpen]);
+    document.addEventListener('keydown', handleKey);
+    window.addEventListener('resize', updateSleepMenuPos);
+    window.addEventListener('scroll', updateSleepMenuPos, true);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKey);
+      window.removeEventListener('resize', updateSleepMenuPos);
+      window.removeEventListener('scroll', updateSleepMenuPos, true);
+    };
+  }, [sleepMenuOpen, updateSleepMenuPos]);
 
   // آهنگ اصلی برای باکس Continue Listening
   const heroSong = useMemo<Song | null>(() => {
@@ -255,6 +294,18 @@ export const Home: React.FC<HomeProps> = ({
     }
   };
 
+  const handleHeroOpenFullScreen = () => {
+    if (!heroSong) return;
+    if (!currentSong || currentSong.id !== heroSong.id) {
+      onPlaySongFromList(heroSong, songs);
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('app:open-fullscreen'));
+      }, 60);
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('app:open-fullscreen'));
+  };
+
   const remainingSleepSeconds =
     sleepTimer.mode === 'until'
       ? Math.max(0, Math.ceil((sleepTimer.endsAt - nowTs) / 1000))
@@ -286,50 +337,13 @@ export const Home: React.FC<HomeProps> = ({
     <div
       style={{
         flex: 1,
-        padding: 'clamp(16px, 3vw, 32px) clamp(16px, 4vw, 40px) 136px',
+        padding: 'clamp(10px, 1.8vw, 18px) clamp(14px, 3.5vw, 36px) 136px',
         overflowY: 'auto',
         overflowX: 'hidden',
         boxSizing: 'border-box',
         direction: isRTL ? 'rtl' : 'ltr',
       }}
     >
-      {/* هدر صفحه */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '8px',
-          marginBottom: 'clamp(16px, 2.2vw, 24px)',
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: 'clamp(24px, 3vw, 32px)',
-              fontWeight: 800,
-              color: theme.colors.textPrimary,
-              margin: 0,
-              letterSpacing: '-0.5px',
-            }}
-          >
-            {t.listenNow || 'همین حالا گوش کن'}
-          </h1>
-          <p
-            style={{
-              margin: '4px 0 0 0',
-              fontSize: '13px',
-              color: theme.colors.textSecondary,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {songs.length} {t.tracksCount || 'آهنگ'} ·{' '}
-            {formatTotalLibraryTime(totalDurationSeconds, t)}
-          </p>
-        </div>
-      </div>
-
       {/* ردیف ۱: کارت اصلی ادامه گوش دادن + کنترل‌های سریع + تایمر خواب */}
       <div
         style={{
@@ -342,8 +356,8 @@ export const Home: React.FC<HomeProps> = ({
           boxShadow: theme.isDark
             ? '0 14px 36px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
             : '0 10px 28px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85)',
-          padding: 'clamp(18px, 2.6vw, 28px)',
-          marginBottom: '20px',
+          padding: 'clamp(16px, 2.2vw, 24px)',
+          marginBottom: '16px',
           overflow: 'visible',
           boxSizing: 'border-box',
         }}
@@ -393,37 +407,59 @@ export const Home: React.FC<HomeProps> = ({
             flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '20px',
+            gap: '16px',
           }}
         >
-          {/* اطلاعات آهنگ فعلی یا آخرین آهنگ */}
+          {/* اطلاعات آهنگ فعلی یا آخرین آهنگ (کلیک روی کاور یا نام آهنگ => باز شدن حالت تمام‌صفحه) */}
           <div
+            role={heroSong ? 'button' : undefined}
+            tabIndex={heroSong ? 0 : undefined}
+            onClick={handleHeroOpenFullScreen}
+            onKeyDown={(e) => {
+              if (heroSong && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                handleHeroOpenFullScreen();
+              }
+            }}
+            onMouseEnter={() => heroSong && setHoveredHeroSong(true)}
+            onMouseLeave={() => setHoveredHeroSong(false)}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '18px',
+              gap: '16px',
               minWidth: 0,
-              flex: '1 1 280px',
+              maxWidth: '100%',
+              flex: '1 1 220px',
+              cursor: heroSong ? 'pointer' : 'default',
+              outline: 'none',
             }}
           >
-            <CoverImage
-              src={heroSong?.cover}
-              alt={heroSong?.name || ''}
-              iconSize={34}
-              iconColor={theme.colors.textSecondary}
-              fallbackBg={
-                theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'
-              }
+            <div
               style={{
-                width: 'clamp(78px, 9vw, 104px)',
-                height: 'clamp(78px, 9vw, 104px)',
-                borderRadius: '16px',
-                objectFit: 'cover',
                 flexShrink: 0,
-                border: `1px solid ${theme.colors.border}`,
-                boxShadow: '0 10px 26px rgba(0, 0, 0, 0.28)',
+                transform: hoveredHeroSong ? 'scale(1.03)' : 'scale(1)',
+                transition: 'transform 0.2s ease',
               }}
-            />
+            >
+              <CoverImage
+                src={heroSong?.cover}
+                alt={heroSong?.name || ''}
+                iconSize={32}
+                iconColor={theme.colors.textSecondary}
+                fallbackBg={
+                  theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'
+                }
+                style={{
+                  width: 'clamp(72px, 8.5vw, 96px)',
+                  height: 'clamp(72px, 8.5vw, 96px)',
+                  borderRadius: '16px',
+                  objectFit: 'cover',
+                  display: 'block',
+                  border: `1px solid ${theme.colors.border}`,
+                  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.28)',
+                }}
+              />
+            </div>
 
             <div style={{ minWidth: 0, flex: 1 }}>
               <div
@@ -431,7 +467,7 @@ export const Home: React.FC<HomeProps> = ({
                   fontSize: '12px',
                   fontWeight: 700,
                   color: theme.colors.primary,
-                  marginBottom: '6px',
+                  marginBottom: '5px',
                 }}
               >
                 {isHeroPlaying
@@ -442,13 +478,16 @@ export const Home: React.FC<HomeProps> = ({
               <h2
                 style={{
                   margin: 0,
-                  fontSize: 'clamp(18px, 2.2vw, 24px)',
+                  fontSize: 'clamp(17px, 2.1vw, 22px)',
                   fontWeight: 800,
-                  color: theme.colors.textPrimary,
+                  color: hoveredHeroSong
+                    ? theme.colors.primary
+                    : theme.colors.textPrimary,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   lineHeight: 1.25,
+                  transition: 'color 0.15s ease',
                 }}
               >
                 {heroSong ? heroSong.name : t.noSongSelected || 'آهنگی انتخاب نشده'}
@@ -499,7 +538,7 @@ export const Home: React.FC<HomeProps> = ({
                 cursor: heroSong ? 'pointer' : 'not-allowed',
                 opacity: heroSong ? 1 : 0.5,
                 boxShadow: `0 6px 18px ${theme.colors.primary}44`,
-                transition: 'filter 0.15s ease, opacity 0.15s ease',
+                transition: 'filter 0.15s ease, opacity 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                 whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
@@ -539,7 +578,7 @@ export const Home: React.FC<HomeProps> = ({
                 fontWeight: 600,
                 cursor: songs.length > 0 ? 'pointer' : 'not-allowed',
                 opacity: songs.length > 0 ? 1 : 0.5,
-                transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                transition: 'background-color 0.15s ease, border-color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                 whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
@@ -560,9 +599,13 @@ export const Home: React.FC<HomeProps> = ({
             </button>
 
             {/* کنترل تایمر خواب */}
-            <div ref={sleepMenuRef} style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
               <button
-                onClick={() => setSleepMenuOpen((prev) => !prev)}
+                ref={sleepButtonRef}
+                onClick={() => {
+                  if (!sleepMenuOpen) updateSleepMenuPos();
+                  setSleepMenuOpen((prev) => !prev);
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -584,7 +627,7 @@ export const Home: React.FC<HomeProps> = ({
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontVariantNumeric: 'tabular-nums',
-                  transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                  transition: 'background-color 0.15s ease, border-color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -592,34 +635,81 @@ export const Home: React.FC<HomeProps> = ({
                 <span>{sleepButtonLabel}</span>
               </button>
 
-              {sleepMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    insetInlineEnd: 0,
-                    minWidth: '185px',
-                    padding: '6px',
-                    borderRadius: theme.radius.md || '14px',
-                    backgroundColor: menuBg,
-                    backdropFilter: 'blur(26px) saturate(180%)',
-                    WebkitBackdropFilter: 'blur(26px) saturate(180%)',
-                    border: `1px solid ${theme.colors.border}`,
-                    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.42)',
-                    zIndex: 80,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px',
-                  }}
-                >
-                  {[15, 30, 60].map((mins) => (
+              {sleepMenuOpen &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                  <div
+                    ref={sleepPortalRef}
+                    style={{
+                      position: 'fixed',
+                      top: sleepMenuPos.top,
+                      left: sleepMenuPos.left,
+                      width: '195px',
+                      padding: '6px',
+                      borderRadius: theme.radius.md || '14px',
+                      backgroundColor: menuBg,
+                      backdropFilter: 'blur(26px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+                      border: `1px solid ${theme.colors.border}`,
+                      boxShadow: '0 18px 42px rgba(0, 0, 0, 0.48)',
+                      zIndex: 999999,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                      direction: isRTL ? 'rtl' : 'ltr',
+                    }}
+                  >
+                    {[15, 30, 60].map((mins) => {
+                      const isPresetActive =
+                        sleepTimer.mode === 'until' &&
+                        sleepTimer.durationMinutes === mins;
+                      return (
+                        <button
+                          key={mins}
+                          onClick={() => {
+                            onSetSleepTimer({
+                              mode: 'until',
+                              endsAt: Date.now() + mins * 60 * 1000,
+                              durationMinutes: mins,
+                            });
+                            setSleepMenuOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'transparent',
+                            color: isPresetActive
+                              ? theme.colors.primary
+                              : theme.colors.textPrimary,
+                            fontSize: '13px',
+                            fontWeight: isPresetActive ? 700 : 500,
+                            textAlign: 'start',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = menuItemHover;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <span>
+                            {mins} {t.sleepMinutes || 'دقیقه'}
+                          </span>
+                          {isPresetActive && <Check size={14} />}
+                        </button>
+                      );
+                    })}
+
                     <button
-                      key={mins}
                       onClick={() => {
-                        onSetSleepTimer({
-                          mode: 'until',
-                          endsAt: Date.now() + mins * 60 * 1000,
-                        });
+                        onSetSleepTimer({ mode: 'songEnd' });
                         setSleepMenuOpen(false);
                       }}
                       style={{
@@ -628,15 +718,17 @@ export const Home: React.FC<HomeProps> = ({
                         borderRadius: '8px',
                         border: 'none',
                         background: 'transparent',
-                        color: theme.colors.textPrimary,
+                        color:
+                          sleepTimer.mode === 'songEnd'
+                            ? theme.colors.primary
+                            : theme.colors.textPrimary,
                         fontSize: '13px',
-                        fontWeight: 500,
+                        fontWeight: sleepTimer.mode === 'songEnd' ? 700 : 500,
                         textAlign: 'start',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        fontVariantNumeric: 'tabular-nums',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = menuItemHover;
@@ -645,90 +737,55 @@ export const Home: React.FC<HomeProps> = ({
                         e.currentTarget.style.backgroundColor = 'transparent';
                       }}
                     >
-                      <span>
-                        {mins} {t.sleepMinutes || 'دقیقه'}
-                      </span>
+                      <span>{t.endOfSong || 'پایان آهنگ فعلی'}</span>
+                      {sleepTimer.mode === 'songEnd' && <Check size={14} />}
                     </button>
-                  ))}
 
-                  <button
-                    onClick={() => {
-                      onSetSleepTimer({ mode: 'songEnd' });
-                      setSleepMenuOpen(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: 'transparent',
-                      color:
-                        sleepTimer.mode === 'songEnd'
-                          ? theme.colors.primary
-                          : theme.colors.textPrimary,
-                      fontSize: '13px',
-                      fontWeight: sleepTimer.mode === 'songEnd' ? 700 : 500,
-                      textAlign: 'start',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = menuItemHover;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }}
-                  >
-                    <span>{t.endOfSong || 'پایان آهنگ فعلی'}</span>
-                    {sleepTimer.mode === 'songEnd' && <Check size={14} />}
-                  </button>
-
-                  {isSleepActive && (
-                    <>
-                      <div
-                        style={{
-                          height: '1px',
-                          backgroundColor: theme.colors.border,
-                          margin: '3px 4px',
-                        }}
-                      />
-                      <button
-                        onClick={() => {
-                          onSetSleepTimer({ mode: 'off' });
-                          setSleepMenuOpen(false);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: 'transparent',
-                          color: theme.colors.danger || '#ff453a',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          textAlign: 'start',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor =
-                            'rgba(255, 69, 58, 0.14)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                      >
-                        <X size={14} />
-                        <span>{t.sleepTimerOff || 'خاموش'}</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+                    {isSleepActive && (
+                      <>
+                        <div
+                          style={{
+                            height: '1px',
+                            backgroundColor: theme.colors.border,
+                            margin: '3px 4px',
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            onSetSleepTimer({ mode: 'off' });
+                            setSleepMenuOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'transparent',
+                            color: theme.colors.danger || '#ff453a',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            textAlign: 'start',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              'rgba(255, 69, 58, 0.14)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <X size={14} />
+                          <span>{t.sleepTimerOff || 'خاموش'}</span>
+                        </button>
+                      </>
+                    )}
+                  </div>,
+                  document.body
+                )}
             </div>
           </div>
         </div>
@@ -738,13 +795,13 @@ export const Home: React.FC<HomeProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
           gap: '1px',
           backgroundColor: theme.colors.border,
           borderRadius: theme.radius.lg || '18px',
           border: `1px solid ${theme.colors.border}`,
           overflow: 'hidden',
-          marginBottom: '26px',
+          marginBottom: '22px',
         }}
       >
         <div
@@ -752,7 +809,7 @@ export const Home: React.FC<HomeProps> = ({
             backgroundColor: theme.colors.surface,
             backdropFilter: 'blur(22px)',
             WebkitBackdropFilter: 'blur(22px)',
-            padding: '14px 18px',
+            padding: '13px 16px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
@@ -765,14 +822,18 @@ export const Home: React.FC<HomeProps> = ({
             </div>
             <div
               style={{
-                fontSize: '15px',
+                fontSize: '14.5px',
                 fontWeight: 700,
                 color: theme.colors.textPrimary,
                 fontVariantNumeric: 'tabular-nums',
                 marginTop: '2px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
-              {formatTotalLibraryTime(totalDurationSeconds, t)}
+              {formatTotalLibraryTime(totalDurationSeconds, t)} · {songs.length}{' '}
+              {t.tracksCount || 'آهنگ'}
             </div>
           </div>
         </div>
@@ -925,7 +986,7 @@ export const Home: React.FC<HomeProps> = ({
                 fontSize: '12.5px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'color 0.15s ease, border-color 0.15s ease',
+                transition: 'color 0.15s ease, border-color 0.15s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = theme.colors.textPrimary;
@@ -950,7 +1011,7 @@ export const Home: React.FC<HomeProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
               gap: '10px',
             }}
           >
@@ -1081,8 +1142,8 @@ export const Home: React.FC<HomeProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          gap: '18px',
         }}
       >
         {/* ستون ۱: دسترسی سریع */}

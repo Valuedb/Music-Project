@@ -899,7 +899,7 @@ export const Folders: React.FC<FoldersProps> = ({
                             color: theme.colors.textPrimary,
                             fontSize: 13.5,
                             fontWeight: 500,
-                            transition: 'background-color 0.12s ease',
+                            transition: 'background-color 0.12s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                           }}
                         >
                           <Edit2 size={15} /> <span>{t.renameFolder || 'تغییر نام'}</span>
@@ -928,7 +928,7 @@ export const Folders: React.FC<FoldersProps> = ({
                             color: theme.colors.textPrimary,
                             fontSize: 13.5,
                             fontWeight: 500,
-                            transition: 'background-color 0.12s ease',
+                            transition: 'background-color 0.12s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                           }}
                         >
                           <Plus size={15} /> <span>{t.addSong || 'افزودن آهنگ'}</span>
@@ -958,7 +958,7 @@ export const Folders: React.FC<FoldersProps> = ({
                             color: theme.colors.danger,
                             fontSize: 13.5,
                             fontWeight: 500,
-                            transition: 'background-color 0.12s ease',
+                            transition: 'background-color 0.12s ease, scale 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
                           }}
                         >
                           <Trash2 size={15} /> <span>{t.deleteFolder || 'حذف فولدر'}</span>
