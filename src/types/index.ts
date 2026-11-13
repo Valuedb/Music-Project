@@ -50,3 +50,9 @@ export interface EqualizerSettings {
   bands: number[]; // ۵ باند فرکانسی برحسب دسی‌بل (-12 تا +12)
   bassBoost: number; // تقویت بیس برحسب دسی‌بل (0 تا +12)
 }
+
+export type SleepTimerState =
+  | { mode: 'off' }
+  | { mode: 'until'; endsAt: number }
+  | { mode: 'songEnd' };
+

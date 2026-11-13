@@ -15,14 +15,27 @@ import {
   ArrowLeft,
   LayoutGrid,
   List,
+  Clock,
+  Flame,
+  History,
+  Heart,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 import { CoverImage } from '../components/CoverImage';
+import { AllSongs } from './AllSongs';
 
 interface PlaylistsProps {
   playlists: Playlist[];
   allSongs: Song[];
+  currentSong?: Song | null;
+  isPlaying?: boolean;
   onPlaySongFromList: (song: Song, list: Song[]) => void;
   addToQueue: (song: Song) => void;
+  onDeleteSong?: (id: string) => void;
+  onUpdateSong?: (updatedSong: Song) => void;
+  onAddSongToPlaylist?: (playlistId: string, song: Song) => void;
+  onToggleFavorite?: (id: string) => void;
   t: any;
   onCreatePlaylist: (name: string, selectedSongs: Song[]) => void;
   onDeletePlaylist: (id: string) => void;
@@ -35,6 +48,7 @@ interface PlaylistsProps {
 }
 
 type ViewMode = 'grid' | 'list';
+type SmartPlaylistKey = 'recentlyAdded' | 'mostPlayed' | 'recentlyPlayed' | 'favorites';
 
 // ============================================================
 // کامپوننت‌های کمکی
@@ -953,6 +967,228 @@ const ViewToggle = ({
   );
 };
 
+/** کارت پلی‌لیست هوشمند (اخیراً اضافه شده، پرتکرارترین‌ها، اخیراً پخش شده، محبوب‌ها) */
+const SmartPlaylistCard = ({
+  title,
+  count,
+  icon,
+  iconBg,
+  iconColor,
+  songs,
+  emptyText,
+  onClick,
+  onQuickPlay,
+  theme,
+  t,
+  language,
+}: {
+  title: string;
+  count: number;
+  icon: React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+  songs: Song[];
+  emptyText: string;
+  onClick: () => void;
+  onQuickPlay: () => void;
+  theme: any;
+  t: any;
+  language: 'fa' | 'en';
+}) => {
+  const [hovered, setHovered] = useState(false);
+  const [playHovered, setPlayHovered] = useState(false);
+
+  const previewSongs = songs.slice(0, 4);
+  const hasSongs = songs.length > 0;
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        backgroundColor: hovered
+          ? theme.isDark
+            ? 'rgba(255, 255, 255, 0.09)'
+            : 'rgba(255, 255, 255, 0.86)'
+          : theme.colors.surface,
+        backdropFilter: 'blur(26px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+        borderRadius: theme.radius.xl || '20px',
+        border: `1px solid ${hovered ? theme.colors.primary + '88' : theme.colors.border}`,
+        padding: '16px 18px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        cursor: 'pointer',
+        transition: 'all 0.22s cubic-bezier(0.2, 0, 0, 1)',
+        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+        boxShadow: hovered
+          ? `0 14px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 ${
+              theme.isDark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.9)'
+            }, 0 0 18px ${theme.colors.glow || theme.colors.primary}2a`
+          : theme.isDark
+          ? '0 6px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06)'
+          : '0 4px 14px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.7)',
+        boxSizing: 'border-box',
+        minHeight: '132px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              backgroundColor: iconBg,
+              color: iconColor,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: '14.5px',
+                fontWeight: 700,
+                color: theme.colors.textPrimary,
+                lineHeight: 1.25,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {title}
+            </h3>
+            <span
+              style={{
+                fontSize: '12px',
+                color: theme.colors.textSecondary,
+                marginTop: '2px',
+                display: 'block',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {count} {t.tracksCount || 'آهنگ'}
+            </span>
+          </div>
+        </div>
+
+        {hasSongs ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onQuickPlay();
+            }}
+            onMouseEnter={() => setPlayHovered(true)}
+            onMouseLeave={() => setPlayHovered(false)}
+            title={t.playAll || 'پخش'}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: theme.colors.primary,
+              border: 'none',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: playHovered
+                ? `0 0 12px ${theme.colors.primary}`
+                : '0 2px 8px rgba(0,0,0,0.2)',
+              transform: playHovered ? 'scale(1.06)' : 'scale(1)',
+              transition: 'all 0.18s',
+              flexShrink: 0,
+            }}
+          >
+            <Play size={14} fill="#ffffff" />
+          </button>
+        ) : (
+          <div style={{ color: theme.colors.textSecondary, opacity: 0.55 }}>
+            {language === 'fa' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </div>
+        )}
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+        {hasSongs ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              width: '100%',
+              overflow: 'hidden',
+            }}
+          >
+            {previewSongs.map((song, idx) => (
+              <div
+                key={song.id + idx}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  border: `1px solid ${theme.colors.border}`,
+                  backgroundColor: 'rgba(0,0,0,0.18)',
+                }}
+              >
+                <CoverImage
+                  src={song.cover}
+                  alt=""
+                  iconSize={15}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            ))}
+            {count > previewSongs.length && (
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: theme.colors.textSecondary,
+                  fontVariantNumeric: 'tabular-nums',
+                  paddingInlineStart: '2px',
+                  flexShrink: 0,
+                }}
+              >
+                +{count - previewSongs.length}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              color: theme.colors.textSecondary,
+              lineHeight: 1.4,
+              opacity: 0.85,
+            }}
+          >
+            {emptyText}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ============================================================
 // کامپوننت اصلی
 // ============================================================
@@ -960,8 +1196,14 @@ const ViewToggle = ({
 export const Playlists = ({
   playlists,
   allSongs,
+  currentSong = null,
+  isPlaying = false,
   onPlaySongFromList,
   addToQueue,
+  onDeleteSong,
+  onUpdateSong,
+  onAddSongToPlaylist,
+  onToggleFavorite,
   t,
   onCreatePlaylist,
   onDeletePlaylist,
@@ -972,17 +1214,39 @@ export const Playlists = ({
   glassCardCovers = true,
   initialPlaylist = null,
 }: PlaylistsProps) => {
-  // شناسه پلی‌لیستی که باز شده تا همیشه با والد سینک باشد
+  // شناسه پلی‌لیست عادی یا هوشمند که باز شده
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(() =>
     initialPlaylist ? initialPlaylist.id : null
   );
+  const [activeSmartList, setActiveSmartList] = useState<SmartPlaylistKey | null>(null);
   const activePlaylist = playlists.find((p) => p.id === activePlaylistId) ?? null;
 
   useEffect(() => {
     if (initialPlaylist) {
+      setActiveSmartList(null);
       setActivePlaylistId(initialPlaylist.id);
     }
   }, [initialPlaylist]);
+
+  const recentlyAdded = useMemo(
+    () => [...allSongs].sort((a, b) => b.addedAt - a.addedAt),
+    [allSongs]
+  );
+  const mostPlayed = useMemo(
+    () => [...allSongs].sort((a, b) => (b.playCount || 0) - (a.playCount || 0)),
+    [allSongs]
+  );
+  const recentlyPlayed = useMemo(
+    () =>
+      [...allSongs]
+        .filter((s) => (s.lastPlayedAt && s.lastPlayedAt > 0) || (s.playCount && s.playCount > 0))
+        .sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0)),
+    [allSongs]
+  );
+  const favouriteSongs = useMemo(
+    () => allSongs.filter((s) => s.isFavorite === true),
+    [allSongs]
+  );
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -1071,6 +1335,54 @@ export const Playlists = ({
   // پلی‌لیست هدف برای مودال افزودن آهنگ
   const addSongTarget = playlists.find((p) => p.id === addSongTargetId);
   const isRTL = language === 'fa';
+
+  // ---------- صفحه‌ی داخلی پلی‌لیست هوشمند (یکپارچه با AllSongs) ----------
+  if (activeSmartList) {
+    const smartConfig = {
+      recentlyAdded: {
+        title: t.recentlyAdded || 'اخیراً اضافه شده',
+        list: recentlyAdded,
+        empty: t.noSongs || 'هیچ آهنگی وجود ندارد.',
+      },
+      mostPlayed: {
+        title: t.mostPlayed || 'پرتکرارترین‌ها',
+        list: mostPlayed,
+        empty: t.noSongs || 'هنوز پخشی ثبت نشده است.',
+      },
+      recentlyPlayed: {
+        title: t.recentlyPlayed || 'اخیراً پخش شده',
+        list: recentlyPlayed,
+        empty: t.noRecentlyPlayed || 'هنوز هیچ آهنگی پخش نشده است.',
+      },
+      favorites: {
+        title: t.favouriteSongs || 'آهنگ‌های محبوب',
+        list: favouriteSongs,
+        empty: t.noFavorites || 'هنوز آهنگی به عنوان محبوب علامت‌گذاری نشده است.',
+      },
+    }[activeSmartList];
+
+    return (
+      <AllSongs
+        songs={smartConfig.list}
+        playlists={playlists}
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        onPlaySongFromList={onPlaySongFromList}
+        onCreatePlaylist={onCreatePlaylist}
+        addToQueue={addToQueue}
+        onDeleteSong={onDeleteSong ?? (() => {})}
+        onUpdateSong={onUpdateSong ?? (() => {})}
+        onAddSongToPlaylist={onAddSongToPlaylist ?? (() => {})}
+        onToggleFavorite={onToggleFavorite}
+        t={t}
+        theme={theme}
+        title={smartConfig.title}
+        onBack={() => setActiveSmartList(null)}
+        emptyMessage={smartConfig.empty}
+        glassCardCovers={glassCardCovers}
+      />
+    );
+  }
 
   // ---------- صفحه‌ی داخلی پلی‌لیست ----------
   if (activePlaylist) {
@@ -1302,8 +1614,109 @@ export const Playlists = ({
         </div>
       </div>
 
+      {/* بخش ۱: پلی‌لیست‌های هوشمند */}
+      <div style={{ marginBottom: 32 }}>
+        <h2
+          style={{
+            fontSize: '15px',
+            fontWeight: 700,
+            color: theme.colors.textSecondary,
+            margin: '0 0 14px 0',
+          }}
+        >
+          {t.smartPlaylists || 'پلی‌لیست‌های هوشمند'}
+        </h2>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 14,
+          }}
+        >
+          <SmartPlaylistCard
+            title={t.recentlyAdded || 'اخیراً اضافه شده'}
+            count={recentlyAdded.length}
+            icon={<Clock size={18} />}
+            iconBg="rgba(10, 132, 255, 0.15)"
+            iconColor="#0a84ff"
+            songs={recentlyAdded}
+            emptyText={t.noSongs || 'آهنگی موجود نیست'}
+            onClick={() => setActiveSmartList('recentlyAdded')}
+            onQuickPlay={() =>
+              recentlyAdded.length > 0 && onPlaySongFromList(recentlyAdded[0], recentlyAdded)
+            }
+            theme={theme}
+            t={t}
+            language={language}
+          />
+          <SmartPlaylistCard
+            title={t.mostPlayed || 'پرتکرارترین‌ها'}
+            count={mostPlayed.length}
+            icon={<Flame size={18} />}
+            iconBg="rgba(255, 149, 0, 0.15)"
+            iconColor="#ff9500"
+            songs={mostPlayed}
+            emptyText={t.noSongs || 'آهنگی موجود نیست'}
+            onClick={() => setActiveSmartList('mostPlayed')}
+            onQuickPlay={() =>
+              mostPlayed.length > 0 && onPlaySongFromList(mostPlayed[0], mostPlayed)
+            }
+            theme={theme}
+            t={t}
+            language={language}
+          />
+          <SmartPlaylistCard
+            title={t.recentlyPlayed || 'اخیراً پخش شده'}
+            count={recentlyPlayed.length}
+            icon={<History size={18} />}
+            iconBg="rgba(94, 92, 230, 0.15)"
+            iconColor="#5e5ce6"
+            songs={recentlyPlayed}
+            emptyText={t.noRecentlyPlayed || 'با پخش آهنگ‌ها، تاریخچه در اینجا ثبت می‌شود'}
+            onClick={() => setActiveSmartList('recentlyPlayed')}
+            onQuickPlay={() =>
+              recentlyPlayed.length > 0 &&
+              onPlaySongFromList(recentlyPlayed[0], recentlyPlayed)
+            }
+            theme={theme}
+            t={t}
+            language={language}
+          />
+          <SmartPlaylistCard
+            title={t.favouriteSongs || 'آهنگ‌های محبوب'}
+            count={favouriteSongs.length}
+            icon={<Heart size={18} fill="#ff3b30" />}
+            iconBg="rgba(255, 59, 48, 0.15)"
+            iconColor="#ff3b30"
+            songs={favouriteSongs}
+            emptyText={t.noFavorites || 'برای افزودن آهنگ به اینجا، روی آیکون قلب کلیک کنید'}
+            onClick={() => setActiveSmartList('favorites')}
+            onQuickPlay={() =>
+              favouriteSongs.length > 0 &&
+              onPlaySongFromList(favouriteSongs[0], favouriteSongs)
+            }
+            theme={theme}
+            t={t}
+            language={language}
+          />
+        </div>
+      </div>
+
+      {/* بخش ۲: پلی‌لیست‌های شخصی کاربر */}
+      <h2
+        style={{
+          fontSize: '15px',
+          fontWeight: 700,
+          color: theme.colors.textSecondary,
+          margin: '0 0 14px 0',
+        }}
+      >
+        {t.myPlaylists || 'پلی‌لیست‌های من'}
+      </h2>
+
       {playlists.length === 0 ? (
-        <p style={{ color: theme.colors.textSecondary }}>—</p>
+        <p style={{ color: theme.colors.textSecondary }}>{t.noPlaylists || '—'}</p>
       ) : viewMode === 'grid' ? (
         <div
           style={{

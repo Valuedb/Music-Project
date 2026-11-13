@@ -11,7 +11,7 @@ import { usePlayer } from './hooks/usePlayer';
 import { STORAGE_KEYS } from './storage/keys';
 import { readJSON } from './storage/safeStorage';
 import { isEqualizerSettings, isPlaylistList, isSongList } from './types/guards';
-import type { EqualizerSettings, Playlist, Song } from './types';
+import type { EqualizerSettings, Playlist, SleepTimerState, Song } from './types';
 import { DEFAULT_EQ_SETTINGS, audioEffects } from './player/audioEffects';
 import { translations, type Language } from './locales';
 import { getTheme, type PaletteType, type ThemeMode } from './theme';
@@ -81,6 +81,7 @@ function App() {
     (v): v is boolean => typeof v === 'boolean'
   );
   const [isPlaying, setIsPlaying] = useState(false);
+  const [sleepTimer, setSleepTimer] = useState<SleepTimerState>({ mode: 'off' });
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const dragCounterRef = useRef(0);
 
@@ -285,6 +286,17 @@ function App() {
     },
     [player, setSongs]
   );
+
+  const handleShuffleAll = useCallback(() => {
+    if (songs.length === 0) return;
+    player.setShuffle(true);
+    const randomSong = songs[Math.floor(Math.random() * songs.length)];
+    handlePlaySongFromList(randomSong, songs);
+  }, [songs, player, handlePlaySongFromList]);
+
+  const handleClearSleepTimer = useCallback(() => {
+    setSleepTimer({ mode: 'off' });
+  }, []);
 
   const handleCreatePlaylist = useCallback(
     (name: string, selectedSongs: Song[]) => {
@@ -575,14 +587,14 @@ function App() {
           <Home
             songs={songs}
             playlists={playlists}
+            customFolders={customFolders}
             currentSong={player.currentSong}
             onPlaySongFromList={handlePlaySongFromList}
-            onCreatePlaylist={handleCreatePlaylist}
-            addToQueue={player.addToQueue}
-            onDeleteSong={deleteSong}
-            onUpdateSong={updateSong}
-            onAddSongToPlaylist={addSongToPlaylist}
-            onToggleFavorite={toggleFavoriteSong}
+            onShuffleAll={handleShuffleAll}
+            onNavigateToItem={handleNavigateFromSearch}
+            onSelectTab={setTab}
+            sleepTimer={sleepTimer}
+            onSetSleepTimer={setSleepTimer}
             t={t}
             theme={theme}
             language={language}
@@ -614,8 +626,14 @@ function App() {
           <Playlists
             playlists={playlists}
             allSongs={songs}
+            currentSong={player.currentSong}
+            isPlaying={isPlaying}
             onPlaySongFromList={handlePlaySongFromList}
             addToQueue={player.addToQueue}
+            onDeleteSong={deleteSong}
+            onUpdateSong={updateSong}
+            onAddSongToPlaylist={addSongToPlaylist}
+            onToggleFavorite={toggleFavoriteSong}
             t={t}
             onCreatePlaylist={handleCreatePlaylist}
             onDeletePlaylist={deletePlaylist}
@@ -921,6 +939,8 @@ function App() {
             if (tabs[idx]) setTab(tabs[idx]);
           }}
           onOpenSettings={() => setTab('settings')}
+          sleepTimer={sleepTimer}
+          onClearSleepTimer={handleClearSleepTimer}
         />
       </div>
 

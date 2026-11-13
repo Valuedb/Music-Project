@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PLAY_COUNT_THRESHOLD_SECONDS } from '../player/constants';
-import type { RepeatMode, Song } from '../types';
+import type { RepeatMode, SleepTimerState, Song } from '../types';
 import { FullScreenPlayer } from './FullScreenPlayer';
 import { QueueDrawer } from './QueueDrawer';
 import { CoverImage } from './CoverImage';
@@ -63,6 +63,8 @@ interface PlayerBarProps {
   onCreatePlaylist?: (name: string, songs: Song[]) => void;
   onSelectTabIndex?: (index: number) => void;
   onOpenSettings?: () => void;
+  sleepTimer?: SleepTimerState;
+  onClearSleepTimer?: () => void;
 }
 
 export const PlayerBar = ({
@@ -88,6 +90,8 @@ export const PlayerBar = ({
   onCreatePlaylist,
   onSelectTabIndex,
   onOpenSettings,
+  sleepTimer,
+  onClearSleepTimer,
 }: PlayerBarProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -292,6 +296,25 @@ export const PlayerBar = ({
     }
   }, [currentSong, handlePlayState]);
 
+  useEffect(() => {
+    const handleExternalToggle = () => {
+      togglePlay();
+    };
+    window.addEventListener('app:toggle-play', handleExternalToggle);
+    return () => window.removeEventListener('app:toggle-play', handleExternalToggle);
+  }, [togglePlay]);
+
+  useEffect(() => {
+    if (!sleepTimer || sleepTimer.mode !== 'until') return;
+    const remainingMs = Math.max(0, sleepTimer.endsAt - Date.now());
+    const timer = window.setTimeout(() => {
+      audioRef.current?.pause();
+      handlePlayState(false);
+      onClearSleepTimer?.();
+    }, remainingMs);
+    return () => window.clearTimeout(timer);
+  }, [sleepTimer, handlePlayState, onClearSleepTimer]);
+
   const toggleRepeat = useCallback(() => {
     if (repeatMode === 'off') setRepeatMode('all');
     else if (repeatMode === 'all') setRepeatMode('one');
@@ -387,6 +410,11 @@ export const PlayerBar = ({
   }, [currentSong, isPlaying]);
 
   const handleSongEnd = () => {
+    if (sleepTimer?.mode === 'songEnd') {
+      handlePlayState(false);
+      onClearSleepTimer?.();
+      return;
+    }
     if (repeatMode === 'one') {
       const audio = audioRef.current;
       if (audio) {
